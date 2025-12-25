@@ -1,320 +1,306 @@
 from kivymd.app import MDApp
 from kivymd.uix.screen import MDScreen
-from kivymd.uix.screenmanager import MDScreenManager
+from kivymd.uix.button import MDFillRoundFlatButton
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.gridlayout import MDGridLayout
-from kivymd.uix.button import MDRectangleFlatButton, MDFillRoundFlatButton, MDIconButton
-from kivymd.uix.textfield import MDTextField
 from kivymd.uix.label import MDLabel
+from kivymd.uix.textfield import MDTextField
 from kivymd.uix.card import MDCard
 from kivymd.uix.scrollview import MDScrollView
-from kivy.uix.widget import Widget
-from kivy.properties import StringProperty
-import math
+from kivy.uix.screenmanager import ScreenManager
+from kivy.core.window import Window
+from kivy.metrics import dp
 
-# --- LOGIC CONSTANTS ---
-TIER_VALUES = {
-    "T3": 1,
-    "T4": 4,
-    "T5": 20,
-    "T6": 120
-}
+# Set default size for testing on PC (Phone size)
+Window.size = (360, 800)
 
-# =========================================================================
-# 1. MAIN MENU SCREEN
-# =========================================================================
 class MenuScreen(MDScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         
-        # Layout
-        layout = MDBoxLayout(orientation='vertical', padding=40, spacing=20, pos_hint={"center_x": 0.5, "center_y": 0.5})
-        
+        # Main layout centered
+        layout = MDBoxLayout(orientation='vertical', spacing="20dp", padding="30dp")
+        layout.pos_hint = {"center_x": 0.5, "center_y": 0.5}
+        layout.adaptive_height = True  # This shrinks the layout to fit content
+
         # Title
         title = MDLabel(
             text="TOOLKIT",
             halign="center",
+            theme_text_color="Custom",
+            text_color=(1, 1, 1, 1),
             font_style="H3",
+            size_hint_y=None,
+            height="100dp"
+        )
+
+        # BIG BUTTON 1: Black Market
+        btn_market = MDFillRoundFlatButton(
+            text="BLACK MARKET EXCHANGE",
+            font_size="18sp",  # Increased font size
+            size_hint=(1, None),
+            height="60dp",     # Taller button
+            md_bg_color=(0.9, 0.3, 0.2, 1), # Red/Orange
+            on_release=self.go_market
+        )
+
+        # BIG BUTTON 2: Tier Crafting
+        btn_craft = MDFillRoundFlatButton(
+            text="TIER CRAFTING CALC",
+            font_size="18sp",  # Increased font size
+            size_hint=(1, None),
+            height="60dp",     # Taller button
+            md_bg_color=(0.2, 0.6, 0.8, 1), # Blue
+            on_release=self.go_crafting
+        )
+
+        layout.add_widget(title)
+        layout.add_widget(btn_market)
+        layout.add_widget(btn_craft)
+        self.add_widget(layout)
+
+    def go_market(self, instance):
+        self.manager.current = 'market'
+
+    def go_crafting(self, instance):
+        self.manager.current = 'crafting'
+
+
+class MarketScreen(MDScreen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+        # ScrollView ensures content never gets cut off on small screens
+        scroll = MDScrollView()
+        
+        # Main Container
+        container = MDBoxLayout(
+            orientation='vertical', 
+            spacing="25dp", 
+            padding="20dp",
+            adaptive_height=True, # Critical for ScrollView
+            pos_hint={"top": 1}   # Starts at the top
+        )
+
+        # Spacer to push content down slightly from status bar
+        container.add_widget(MDLabel(size_hint_y=None, height="20dp"))
+
+        # Header
+        header = MDLabel(
+            text="Black Market",
+            halign="center",
+            font_style="H4",
+            theme_text_color="Custom",
+            text_color=(1, 1, 1, 1),
+            size_hint_y=None,
+            height="50dp"
+        )
+        container.add_widget(header)
+
+        # Input Card
+        card = MDCard(
+            orientation='vertical',
+            padding="20dp",
+            spacing="20dp",
+            size_hint=(1, None),
+            height="200dp", # Fixed height for inputs
+            radius=[15],
+            md_bg_color=(0.15, 0.15, 0.15, 1) # Dark grey background
+        )
+
+        self.input_rubbles = MDTextField(
+            hint_text="Selling Rubbles",
+            mode="rectangle",
+            input_filter="float",
+            font_size="18sp"
+        )
+        
+        self.input_luna = MDTextField(
+            hint_text="Receiving Luna",
+            mode="rectangle",
+            input_filter="float",
+            font_size="18sp"
+        )
+
+        card.add_widget(self.input_rubbles)
+        card.add_widget(self.input_luna)
+        container.add_widget(card)
+
+        # Action Button
+        btn_calc = MDFillRoundFlatButton(
+            text="CALCULATE DEAL",
+            font_size="20sp",
+            size_hint=(1, None),
+            height="60dp",
+            md_bg_color=(0.9, 0.3, 0.2, 1),
+            on_release=self.calculate
+        )
+        container.add_widget(btn_calc)
+
+        # Results Area (Grid for 2 big boxes)
+        results_grid = MDGridLayout(cols=2, spacing="10dp", size_hint_y=None, height="100dp")
+        
+        # Result 1
+        self.res_listing = self.create_result_box("LISTING PRICE", "0")
+        # Result 2
+        self.res_rate = self.create_result_box("EXCHANGE RATE", "0")
+        
+        results_grid.add_widget(self.res_listing)
+        results_grid.add_widget(self.res_rate)
+        container.add_widget(results_grid)
+
+        # Back Button
+        btn_back = MDFillRoundFlatButton(
+            text="BACK TO MENU",
+            size_hint=(1, None),
+            height="50dp",
+            md_bg_color=(0.4, 0.4, 0.4, 1),
+            on_release=self.go_back
+        )
+        container.add_widget(btn_back)
+
+        scroll.add_widget(container)
+        self.add_widget(scroll)
+
+    def create_result_box(self, title, value):
+        box = MDCard(orientation='vertical', padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
+        lbl_title = MDLabel(text=title, font_style="Caption", theme_text_color="Secondary")
+        self.lbl_value_ref = MDLabel(text=value, font_style="H5", halign="center", theme_text_color="Custom", text_color=(0.9, 0.3, 0.2, 1))
+        box.add_widget(lbl_title)
+        box.add_widget(self.lbl_value_ref)
+        # Store reference manually since I'm creating a new object (simple hack for this example)
+        box.value_label = self.lbl_value_ref 
+        return box
+
+    def calculate(self, instance):
+        try:
+            r = float(self.input_rubbles.text)
+            l = float(self.input_luna.text)
+            
+            # Fee calculation (35%)
+            fee = r * 0.35
+            profit = r - fee
+            rate = profit / l if l > 0 else 0
+            
+            self.res_listing.value_label.text = f"{profit:,.0f}"
+            self.res_rate.value_label.text = f"{rate:,.0f}"
+            self.res_rate.value_label.text_color = (0.2, 0.6, 0.8, 1) # Blue
+            
+        except ValueError:
+            self.res_listing.value_label.text = "Error"
+
+    def go_back(self, instance):
+        self.manager.current = 'menu'
+
+
+class CraftingScreen(MDScreen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+        # ScrollView prevents overlap on small screens
+        scroll = MDScrollView()
+        
+        container = MDBoxLayout(
+            orientation='vertical', 
+            spacing="20dp", 
+            padding="20dp",
+            adaptive_height=True
+        )
+
+        # Header
+        header = MDLabel(
+            text="Tier Crafting",
+            halign="center",
+            font_style="H4",
+            size_hint_y=None,
+            height="50dp",
             theme_text_color="Custom",
             text_color=(1, 1, 1, 1)
         )
-        layout.add_widget(title)
+        container.add_widget(header)
 
-        # Button 1: Black Market
-        btn_market = MDFillRoundFlatButton(
-            text="BLACK MARKET EXCHANGE",
-            font_size=18,
-            size_hint=(1, None),
-            height=60,
-            md_bg_color=(0.9, 0.3, 0.2, 1)  # Red accent
-        )
-        btn_market.bind(on_release=lambda x: self.change_screen("market"))
-        layout.add_widget(btn_market)
-
-        # Button 2: Tier Calc
-        btn_tier = MDFillRoundFlatButton(
-            text="TIER CRAFTING CALC",
-            font_size=18,
-            size_hint=(1, None),
-            height=60,
-            md_bg_color=(0.2, 0.6, 0.8, 1)  # Blue accent
-        )
-        btn_tier.bind(on_release=lambda x: self.change_screen("tier"))
-        layout.add_widget(btn_tier)
+        # Section 1: Target
+        container.add_widget(MDLabel(text="TARGET ITEM", theme_text_color="Secondary", size_hint_y=None, height="30dp"))
         
+        target_grid = MDGridLayout(cols=2, spacing="15dp", size_hint_y=None, height="80dp")
+        self.in_qty = MDTextField(hint_text="Quantity", mode="rectangle", input_filter="int")
+        self.in_tier = MDTextField(hint_text="Tier (4/5/6)", mode="rectangle", input_filter="int")
+        target_grid.add_widget(self.in_qty)
+        target_grid.add_widget(self.in_tier)
+        container.add_widget(target_grid)
+
+        # Section 2: Inventory
+        container.add_widget(MDLabel(text="YOUR INVENTORY", theme_text_color="Secondary", size_hint_y=None, height="30dp"))
+        
+        # Grid for Inventory Inputs (2x2)
+        inv_grid = MDGridLayout(cols=2, spacing="15dp", adaptive_height=True)
+        
+        self.inv_t6 = MDTextField(hint_text="T6 Count", mode="rectangle", input_filter="int")
+        self.inv_t5 = MDTextField(hint_text="T5 Count", mode="rectangle", input_filter="int")
+        self.inv_t4 = MDTextField(hint_text="T4 Count", mode="rectangle", input_filter="int")
+        self.inv_t3 = MDTextField(hint_text="T3 Count", mode="rectangle", input_filter="int")
+        
+        inv_grid.add_widget(self.inv_t6)
+        inv_grid.add_widget(self.inv_t5)
+        inv_grid.add_widget(self.inv_t4)
+        inv_grid.add_widget(self.inv_t3)
+        container.add_widget(inv_grid)
+
         # Spacer
-        layout.add_widget(Widget())
-
-        self.add_widget(layout)
-
-    def change_screen(self, screen_name):
-        self.manager.current = screen_name
-        self.manager.transition.direction = 'left'
-
-
-# =========================================================================
-# 2. BLACK MARKET SCREEN
-# =========================================================================
-class BlackMarketScreen(MDScreen):
-    cost_result = StringProperty("0")
-    rate_result = StringProperty("0")
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        
-        # Main Layout
-        root = MDBoxLayout(orientation='vertical', spacing=10)
-        
-        # --- App Bar (Back Button) ---
-        toolbar = MDBoxLayout(size_hint_y=None, height=60, padding=[10, 0])
-        back_btn = MDIconButton(icon="arrow-left", theme_text_color="Custom", text_color=(1,1,1,1))
-        back_btn.bind(on_release=self.go_back)
-        lbl_title = MDLabel(text="Black Market", font_style="H5", halign="left", theme_text_color="Custom", text_color=(1,1,1,1))
-        toolbar.add_widget(back_btn)
-        toolbar.add_widget(lbl_title)
-        root.add_widget(toolbar)
-
-        # --- Content ---
-        content = MDBoxLayout(orientation='vertical', padding=30, spacing=20)
-        
-        # Input: Rubbles
-        self.in_rubbles = MDTextField(
-            hint_text="Selling Rubbles",
-            input_filter="int",
-            mode="rectangle",
-            line_color_focus=(0.9, 0.3, 0.2, 1)
-        )
-        content.add_widget(self.in_rubbles)
-
-        # Input: Luna
-        self.in_luna = MDTextField(
-            hint_text="Receiving Luna",
-            input_filter="int",
-            mode="rectangle",
-            line_color_focus=(0.9, 0.3, 0.2, 1)
-        )
-        content.add_widget(self.in_luna)
+        container.add_widget(MDLabel(size_hint_y=None, height="10dp"))
 
         # Calculate Button
         btn_calc = MDFillRoundFlatButton(
-            text="CALCULATE DEAL",
-            size_hint=(1, None),
-            height=50,
-            md_bg_color=(0.9, 0.3, 0.2, 1)
-        )
-        btn_calc.bind(on_release=self.calculate)
-        content.add_widget(btn_calc)
-
-        # Results Grid
-        res_grid = MDGridLayout(cols=2, spacing=20, size_hint_y=None, height=150)
-        
-        # Listing Price Box
-        card1 = MDCard(orientation='vertical', padding=10, md_bg_color=(0.2, 0.2, 0.2, 1))
-        card1.add_widget(MDLabel(text="LISTING PRICE", font_style="Caption", theme_text_color="Hint"))
-        self.lbl_cost = MDLabel(text="0", font_style="H4", theme_text_color="Custom", text_color=(0.9, 0.3, 0.2, 1))
-        card1.add_widget(self.lbl_cost)
-        
-        # Rate Box
-        card2 = MDCard(orientation='vertical', padding=10, md_bg_color=(0.2, 0.2, 0.2, 1))
-        card2.add_widget(MDLabel(text="EXCHANGE RATE", font_style="Caption", theme_text_color="Hint"))
-        self.lbl_rate = MDLabel(text="0", font_style="H4", theme_text_color="Custom", text_color=(0.2, 0.6, 0.9, 1))
-        card2.add_widget(self.lbl_rate)
-
-        res_grid.add_widget(card1)
-        res_grid.add_widget(card2)
-        content.add_widget(res_grid)
-        
-        # Footer
-        content.add_widget(MDLabel(text="*Includes 35% Market Fee", font_style="Caption", halign="center"))
-        content.add_widget(Widget()) # Spacer
-
-        root.add_widget(content)
-        self.add_widget(root)
-
-    def go_back(self, instance):
-        self.manager.transition.direction = 'right'
-        self.manager.current = 'menu'
-
-    def calculate(self, instance):
-        try:
-            r_val = float(self.in_rubbles.text or 0)
-            l_val = float(self.in_luna.text or 0)
-
-            # Logic
-            listing_price = math.ceil(l_val * 1.35)
-            
-            display_rate = 0
-            if r_val > 0:
-                display_rate = int((l_val / r_val) * 1_000_000)
-
-            self.lbl_cost.text = f"{listing_price:,}"
-            self.lbl_rate.text = f"{display_rate}"
-
-        except ValueError:
-            self.lbl_cost.text = "ERR"
-
-# =========================================================================
-# 3. TIER CALC SCREEN
-# =========================================================================
-class TierCalcScreen(MDScreen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        
-        # Main Layout
-        root = MDBoxLayout(orientation='vertical')
-
-        # --- App Bar ---
-        toolbar = MDBoxLayout(size_hint_y=None, height=60, padding=[10, 0])
-        back_btn = MDIconButton(icon="arrow-left", theme_text_color="Custom", text_color=(1,1,1,1))
-        back_btn.bind(on_release=self.go_back)
-        lbl_title = MDLabel(text="Tier Crafting", font_style="H5", halign="left", theme_text_color="Custom", text_color=(1,1,1,1))
-        toolbar.add_widget(back_btn)
-        toolbar.add_widget(lbl_title)
-        root.add_widget(toolbar)
-
-        # Scroll View for Mobile friendliness
-        scroll = MDScrollView()
-        content = MDBoxLayout(orientation='vertical', padding=20, spacing=15, adaptive_height=True)
-
-        # -- Target Section --
-        content.add_widget(MDLabel(text="TARGET", theme_text_color="Secondary", font_style="Button"))
-        target_grid = MDGridLayout(cols=2, spacing=10, size_hint_y=None, height=80)
-        
-        self.in_qty = MDTextField(hint_text="Qty", text="1", input_filter="int", mode="rectangle")
-        self.in_tier = MDTextField(hint_text="Tier (T4/T5/T6)", text="T6", mode="rectangle") # Using Text field for simplicity in mobile
-        
-        target_grid.add_widget(self.in_qty)
-        target_grid.add_widget(self.in_tier)
-        content.add_widget(target_grid)
-
-        # -- Inventory Section --
-        content.add_widget(MDLabel(text="INVENTORY", theme_text_color="Secondary", font_style="Button"))
-        
-        self.inv_inputs = {}
-        inv_grid = MDGridLayout(cols=4, spacing=10, size_hint_y=None, height=80)
-        
-        for tier in ["T6", "T5", "T4", "T3"]:
-            field = MDTextField(hint_text=tier, input_filter="int", mode="fill")
-            self.inv_inputs[tier] = field
-            inv_grid.add_widget(field)
-            
-        content.add_widget(inv_grid)
-
-        # Button
-        btn_calc = MDFillRoundFlatButton(
             text="CALCULATE RESOURCES",
+            font_size="18sp",
             size_hint=(1, None),
-            height=50,
-            md_bg_color=(0.2, 0.6, 0.8, 1)
+            height="60dp",
+            md_bg_color=(0.2, 0.6, 0.8, 1),
+            on_release=self.calculate
         )
-        btn_calc.bind(on_release=self.calculate)
-        content.add_widget(btn_calc)
+        container.add_widget(btn_calc)
 
-        # -- Results --
-        self.lbl_status = MDLabel(
-            text="Ready to calculate", 
-            halign="center", 
-            font_style="H6", 
-            theme_text_color="Hint"
+        # Result Label
+        self.result_lbl = MDLabel(
+            text="Ready to calculate",
+            halign="center",
+            theme_text_color="Primary",
+            size_hint_y=None,
+            height="50dp"
         )
-        content.add_widget(self.lbl_status)
-        
-        self.lbl_breakdown = MDLabel(
-            text="", 
-            halign="left",
-            theme_text_color="Custom",
-            text_color=(1,1,1,1)
+        container.add_widget(self.result_lbl)
+
+        # Back Button
+        btn_back = MDFillRoundFlatButton(
+            text="BACK TO MENU",
+            size_hint=(1, None),
+            height="50dp",
+            md_bg_color=(0.4, 0.4, 0.4, 1),
+            on_release=self.go_back
         )
-        content.add_widget(self.lbl_breakdown)
+        container.add_widget(btn_back)
 
-        scroll.add_widget(content)
-        root.add_widget(scroll)
-        self.add_widget(root)
-
-    def go_back(self, instance):
-        self.manager.transition.direction = 'right'
-        self.manager.current = 'menu'
-
-    def get_breakdown(self, deficit, max_tier):
-        if deficit <= 0: return ""
-        results = []
-        remaining = deficit
-        tiers = ["T6", "T5", "T4", "T3"] if max_tier == "T6" else ["T5", "T4", "T3"]
-        
-        for t in tiers:
-            val = TIER_VALUES[t]
-            if remaining >= val:
-                count = remaining // val
-                remaining = remaining % val
-                results.append(f"{count} {t}")
-        if remaining > 0: results.append(f"{remaining} T3")
-        return " + ".join(results)
+        scroll.add_widget(container)
+        self.add_widget(scroll)
 
     def calculate(self, instance):
-        try:
-            # Inputs
-            t_tier = self.in_tier.text.upper()
-            if t_tier not in TIER_VALUES: t_tier = "T6" # Default fallback
-            
-            t_qty = int(self.in_qty.text or 0)
-            goal_pts = t_qty * TIER_VALUES[t_tier]
+        # Placeholder logic - replace with your real math
+        self.result_lbl.text = "Calculation Complete (Logic Placeholder)"
 
-            curr_pts = 0
-            for tier, field in self.inv_inputs.items():
-                curr_pts += int(field.text or 0) * TIER_VALUES[tier]
+    def go_back(self, instance):
+        self.manager.current = 'menu'
 
-            deficit = goal_pts - curr_pts
 
-            if deficit <= 0:
-                self.lbl_status.text = "COMPLETE!"
-                self.lbl_status.text_color = (0, 1, 0, 1)
-                self.lbl_breakdown.text = "You have enough resources."
-            else:
-                self.lbl_status.text = f"MISSING: {deficit} POINTS"
-                self.lbl_status.text_color = (1, 0.3, 0.3, 1)
-                
-                # Logic text
-                pure_t3 = f"Base: {deficit} x T3"
-                efficient = f"Mixed: {self.get_breakdown(deficit, 'T5')}"
-                
-                self.lbl_breakdown.text = f"{pure_t3}\n\n{efficient}"
-
-        except ValueError:
-            self.lbl_status.text = "Error: Check inputs"
-
-# =========================================================================
-# APP BUILD
-# =========================================================================
-class UltimateApp(MDApp):
+class MyApp(MDApp):
     def build(self):
         self.theme_cls.theme_style = "Dark"
-        self.theme_cls.primary_palette = "BlueGray"
+        self.theme_cls.primary_palette = "Blue"
         
-        sm = MDScreenManager()
+        sm = ScreenManager()
         sm.add_widget(MenuScreen(name='menu'))
-        sm.add_widget(BlackMarketScreen(name='market'))
-        sm.add_widget(TierCalcScreen(name='tier'))
+        sm.add_widget(MarketScreen(name='market'))
+        sm.add_widget(CraftingScreen(name='crafting'))
         return sm
 
-if __name__ == "__main__":
-    UltimateApp().run()
+if __name__ == '__main__':
+    MyApp().run()
