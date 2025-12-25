@@ -1,60 +1,44 @@
-[app]
+name: Build Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
 
-# (str) Title of your application
-title = My Safe App
+jobs:
+  build:
+    runs-on: ubuntu-22.04
 
-# (str) Package name
-package.name = myapp
+    steps:
+      - uses: actions/checkout@v2
 
-# (str) Package domain (needed for android/ios packaging)
-package.domain = org.test
+      # 1. Use Python 3.9 (The "Golden Standard" for Buildozer)
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
 
-# (str) Source code where the main.py live
-source.dir = .
+      # 2. Install Buildozer
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install buildozer cython==0.29.33
 
-# (str) Source filename (default: main.py)
-source.include_exts = py,png,jpg,kv,atlas
+      # 3. Install System Libraries
+      - name: Install Linux Libs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libffi-dev libssl-dev python3-dev \
+          libltdl-dev autoconf automake libtool pkg-config cmake \
+          zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 openjdk-17-jdk unzip zip
 
-# (str) Application versioning (method 1)
-version = 0.1
+      # 4. Build the APK (Removed 'yes |' so we can see real errors)
+      - name: Build with Buildozer
+        run: |
+          buildozer android debug
 
-# (list) Application requirements
-# comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy==2.3.0,kivymd==1.1.1,pillow
-
-# (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
-orientation = portrait
-
-# (bool) Indicate if the application should be fullscreen or not
-fullscreen = 0
-
-# (list) Permissions
-android.permissions = INTERNET
-
-# (int) Target Android API, should be as high as possible.
-android.api = 31
-
-# (int) Minimum API your APK will support.
-android.minapi = 21
-
-# (int) Android NDK version to use
-android.ndk_api = 21
-
-# (bool) If True, then skip trying to update the Android sdk
-# This can be useful to avoid excess Internet downloads or save time
-# when an update is due and you just want to test/build your package
-android.skip_update = False
-
-# (bool) If True, process some adb commands in sudo
-android.accept_sdk_license = True
-
-# (str) The Android arch to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
-android.archs = arm64-v8a
-
-[buildozer]
-
-# (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
-log_level = 2
-
-# (int) Display warning if buildozer is run as root (0 = False, 1 = True)
-warn_on_root = 0
+      # 5. Upload the APK
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-app-apk
+          path: bin/*.apk
