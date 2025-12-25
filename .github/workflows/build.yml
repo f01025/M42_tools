@@ -1,4 +1,4 @@
-name: Build Android APK (Java 17 Fix)
+name: Build Android APK (Force Old Ubuntu)
 on:
   workflow_dispatch:
   push:
@@ -6,25 +6,26 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # CRITICAL FIX: We force Ubuntu 22.04 because 24.04 deleted libtinfo5
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
 
-      # CRITICAL FIX: Android Gradle now REQUIRES Java 17.
-      # Previous builds failed because they defaulted to Java 11.
+      # Setup Java 17 (Required for Gradle)
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
 
+      # Setup Python 3.9 (Most stable for Buildozer)
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      # Install Buildozer and dependencies
+      # Install Dependencies (libtinfo5 exists on ubuntu-22.04)
       - name: Install Dependencies
         run: |
           pip install --upgrade pip
@@ -43,7 +44,7 @@ jobs:
       # Build the APK
       - name: Build with Buildozer
         run: |
-          buildozer android debug
+          yes | buildozer android debug
 
       # Upload the result
       - name: Upload APK
