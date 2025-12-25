@@ -6,13 +6,13 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 0.1
 
-# CRITICAL: Using older, stable versions to prevent crashes
+# We stick to these stable versions
 requirements = python3,kivy==2.2.1,kivymd==1.1.1,pillow
 
 orientation = portrait
 fullscreen = 0
 android.permissions = INTERNET
-android.api = 31
+android.api = 33
 android.minapi = 21
 android.ndk_api = 21
 android.skip_update = False
