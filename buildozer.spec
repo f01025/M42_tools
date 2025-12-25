@@ -1,6 +1,6 @@
 [app]
-title = My Safe App
-package.name = myapp
+title = M42 Tool
+package.name = m42helper
 package.domain = org.test
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
