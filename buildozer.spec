@@ -1,44 +1,52 @@
-name: Build Android APK
-on:
-  workflow_dispatch:
-  push:
-    branches: [ main, master ]
+[app]
 
-jobs:
-  build:
-    runs-on: ubuntu-22.04
+# (str) Title of your application
+title = My Safe App
 
-    steps:
-      - uses: actions/checkout@v2
+# (str) Package name
+package.name = myapp
 
-      # 1. Use Python 3.9 (The "Golden Standard" for Buildozer)
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
+# (str) Package domain
+package.domain = org.test
 
-      # 2. Install Buildozer
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install buildozer cython==0.29.33
+# (str) Source code where the main.py live
+source.dir = .
 
-      # 3. Install System Libraries
-      - name: Install Linux Libs
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libffi-dev libssl-dev python3-dev \
-          libltdl-dev autoconf automake libtool pkg-config cmake \
-          zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 openjdk-17-jdk unzip zip
+# (str) Source filename
+source.include_exts = py,png,jpg,kv,atlas
 
-      # 4. Build the APK (Removed 'yes |' so we can see real errors)
-      - name: Build with Buildozer
-        run: |
-          buildozer android debug
+# (str) Application versioning
+version = 0.1
 
-      # 5. Upload the APK
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: my-app-apk
-          path: bin/*.apk
+# (list) Application requirements
+# We are using the "Old Reliable" versions that always work
+requirements = python3,kivy==2.2.1,kivymd==1.1.1,pillow
+
+# (str) Supported orientation
+orientation = portrait
+
+# (bool) Fullscreen
+fullscreen = 0
+
+# (list) Permissions
+android.permissions = INTERNET
+
+# (int) Target Android API
+android.api = 31
+android.minapi = 21
+android.ndk_api = 21
+
+# (bool) Skip updates to save time
+android.skip_update = False
+
+# (bool) ACCEPT LICENSE (This fixes the broken pipe)
+android.accept_sdk_license = True
+
+# (str) The Android arch to build for
+android.archs = arm64-v8a
+
+[buildozer]
+
+# (int) Log level
+log_level = 2
+warn_on_root = 0
