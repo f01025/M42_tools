@@ -1,6 +1,6 @@
 name: Build Android APK
 on:
-  workflow_dispatch:      # <--- This creates a "Run" button for you
+  workflow_dispatch:
   push:
     branches: [ main, master ]
 
@@ -11,19 +11,19 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # 1. Setup Python
+      # Use Python 3.9 (Most stable for Android builds)
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.10'
+          python-version: '3.9'
 
-      # 2. Install Buildozer
+      # Install Buildozer
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install buildozer cython==0.29.33
 
-      # 3. Install System Libraries
+      # Install Linux System Libraries
       - name: Install Linux Libs
         run: |
           sudo apt-get update
@@ -31,12 +31,12 @@ jobs:
           libltdl-dev autoconf automake libtool pkg-config cmake \
           zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 openjdk-17-jdk unzip zip
 
-      # 4. Build the APK
+      # Build the APK (NOTICE: No 'yes |' here!)
       - name: Build with Buildozer
         run: |
-          yes | buildozer android debug
+          buildozer android debug
 
-      # 5. Upload the APK
+      # Upload the APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
