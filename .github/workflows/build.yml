@@ -11,18 +11,18 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # 1. We run the Official Kivy Container directly.
-      # This bypasses all installation errors because the tools are pre-installed inside.
+      # 1. Run the Official Kivy Container
       - name: Build APK with Docker
         run: |
           # Allow the container to write to our folder
           sudo chmod 777 .
           
-          # Run the build command inside the virtual machine
+          # Run the command inside the virtual machine
+          # NOTICE: We removed the word "buildozer" below because the container acts as the command itself.
           sudo docker run --rm \
           -v "$PWD":/home/user/hostcwd \
           kivy/buildozer \
-          buildozer android debug
+          android debug
 
       # 2. Upload the result
       - name: Upload APK
