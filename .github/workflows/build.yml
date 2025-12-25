@@ -18,8 +18,9 @@ jobs:
           sudo chmod 777 .
           
           # Run the command inside the virtual machine
-          # NOTICE: We removed the word "buildozer" below because the container acts as the command itself.
+          # ADDED: --network host (This gives the container internet access)
           sudo docker run --rm \
+          --network host \
           -v "$PWD":/home/user/hostcwd \
           kivy/buildozer \
           android debug
