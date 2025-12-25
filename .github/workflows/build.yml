@@ -12,7 +12,6 @@ jobs:
       - uses: actions/checkout@v2
 
       # We use a pre-made action that handles ALL dependencies for us.
-      # No manual apt-get or pip install needed.
       - name: Build with Buildozer
         uses: ArtemSBulgakov/buildozer-action@v1
         id: buildozer
@@ -21,8 +20,9 @@ jobs:
           buildozer_version: stable
           workdir: .
 
+      # FIXED: Uses v4 (New Standard) instead of v2
       - name: Upload artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: package
           path: ${{ steps.buildozer.outputs.filename }}
