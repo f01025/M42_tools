@@ -10,7 +10,7 @@ version = 0.1
 requirements = python3,kivy==2.2.1,kivymd==1.1.1,pillow
 
 orientation = portrait
-fullscreen = 0
+fullscreen = 1
 android.permissions = INTERNET
 android.api = 33
 android.minapi = 21
