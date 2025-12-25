@@ -10,9 +10,12 @@ from kivymd.uix.scrollview import MDScrollView
 from kivy.uix.screenmanager import ScreenManager
 from kivy.core.window import Window
 from kivy.metrics import dp
+from kivy.utils import platform
 
-# Set default size for testing on PC (Phone size)
-Window.size = (360, 800)
+# FIX: Only resize window if running on PC (Windows/Linux/MacOS)
+# On Android, we skip this so the app fills the screen automatically.
+if platform not in ['android', 'ios']:
+    Window.size = (360, 800)
 
 class MenuScreen(MDScreen):
     def __init__(self, **kwargs):
