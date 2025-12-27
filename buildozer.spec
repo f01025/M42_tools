@@ -1,9 +1,10 @@
 [app]
 title = M42 Tool
 package.name = m42helper
+icon.filename = assets/icon.png
 package.domain = org.test
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas
+source.include_exts = py,png,jpg,jpeg,webp,kv,atlas,json
 version = 0.1
 
 # We stick to these stable versions
