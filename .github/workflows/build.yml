@@ -1,4 +1,4 @@
-name: Build Android APK (Ant Fix)
+name: Build Android APK
 on:
   workflow_dispatch:
   push:
@@ -7,25 +7,30 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    
+    # CRITICAL FIX: Tell Buildozer where the system Ant is
+    # so it stops trying to download it from the broken server.
+    env:
+      ANT_HOME: /usr/share/ant
 
     steps:
       - uses: actions/checkout@v4
 
-      # Setup Java 17
+      # 1. Setup Java 17
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # Setup Python 3.9
+      # 2. Setup Python 3.9
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      # Install Dependencies
-      # ADDED: 'ant' to the list below so we don't need to download it later
+      # 3. Install Dependencies
+      # We install 'ant' here manually
       - name: Install Dependencies
         run: |
           pip install --upgrade pip
@@ -37,18 +42,18 @@ jobs:
           zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
           unzip zip ant
 
-      # Clean Cache
+      # 4. Clean Cache
       - name: Clean Cache
         run: |
           rm -rf .buildozer
           rm -rf bin
 
-      # Build the APK
+      # 5. Build the APK
       - name: Build with Buildozer
         run: |
           yes | buildozer android debug
 
-      # Upload the result
+      # 6. Upload the result
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
