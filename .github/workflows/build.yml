@@ -8,8 +8,8 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     
-    # CRITICAL FIX: Tell Buildozer where the system Ant is
-    # so it stops trying to download it from the broken server.
+    # CRITICAL FIX: Point Buildozer to the system-installed Ant
+    # This prevents the "Network is unreachable" download error.
     env:
       ANT_HOME: /usr/share/ant
 
@@ -30,7 +30,7 @@ jobs:
           python-version: '3.9'
 
       # 3. Install Dependencies
-      # We install 'ant' here manually
+      # We install 'ant' here manually so we have it ready
       - name: Install Dependencies
         run: |
           pip install --upgrade pip
