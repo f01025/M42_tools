@@ -8,8 +8,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     
-    # CRITICAL FIX: Point Buildozer to the system-installed Ant
-    # This prevents the "Network is unreachable" download error.
+    # We point to the system Ant, but we fix the path in the steps below
     env:
       ANT_HOME: /usr/share/ant
 
@@ -29,8 +28,7 @@ jobs:
         with:
           python-version: '3.9'
 
-      # 3. Install Dependencies
-      # We install 'ant' here manually so we have it ready
+      # 3. Install Dependencies & Fix Ant Structure
       - name: Install Dependencies
         run: |
           pip install --upgrade pip
@@ -41,6 +39,12 @@ jobs:
           libltdl-dev autoconf automake libtool pkg-config cmake \
           zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
           unzip zip ant
+
+          # --- TRICK BUILDOZER ---
+          # Buildozer looks for $ANT_HOME/bin/ant. Ubuntu puts it in /usr/bin/ant.
+          # We create a link so Buildozer finds it and doesn't download it.
+          sudo mkdir -p /usr/share/ant/bin
+          sudo ln -sf /usr/bin/ant /usr/share/ant/bin/ant
 
       # 4. Clean Cache
       - name: Clean Cache
