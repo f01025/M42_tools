@@ -7,10 +7,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    
-    # We point to the system Ant, but we fix the path in the steps below
-    env:
-      ANT_HOME: /usr/share/ant
 
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +24,7 @@ jobs:
         with:
           python-version: '3.9'
 
-      # 3. Install Dependencies & Fix Ant Structure
+      # 3. Install Dependencies & Trick Buildozer
       - name: Install Dependencies
         run: |
           pip install --upgrade pip
@@ -40,16 +36,17 @@ jobs:
           zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
           unzip zip ant
 
-          # --- TRICK BUILDOZER ---
-          # Buildozer looks for $ANT_HOME/bin/ant. Ubuntu puts it in /usr/bin/ant.
-          # We create a link so Buildozer finds it and doesn't download it.
-          sudo mkdir -p /usr/share/ant/bin
-          sudo ln -sf /usr/bin/ant /usr/share/ant/bin/ant
+          # --- THE TRICK ---
+          # 1. Create the folder where Buildozer looks for Ant
+          mkdir -p ~/.buildozer/android/platform/apache-ant-1.9.4
+          
+          # 2. Copy the system Ant into that folder
+          # This makes Buildozer think it successfully downloaded Ant 1.9.4
+          cp -r /usr/share/ant/* ~/.buildozer/android/platform/apache-ant-1.9.4/
 
-      # 4. Clean Cache
+      # 4. Clean Cache (Only bin, keep the fake ant we just made)
       - name: Clean Cache
         run: |
-          rm -rf .buildozer
           rm -rf bin
 
       # 5. Build the APK
