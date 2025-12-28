@@ -1,6 +1,7 @@
 import json
 import os
 import math
+import traceback
 from functools import partial
 from kivymd.app import MDApp
 from kivymd.uix.screen import MDScreen
@@ -18,18 +19,29 @@ from kivy.core.window import Window
 from kivy.utils import platform
 from kivy.clock import Clock
 
-# --- VERSION 6.1 (STABLE LOOP FIX) ---
+# --- VERSION 7.0 (STORAGE PERMISSION FIX) ---
 
 if platform not in ['android', 'ios']:
     Window.size = (360, 800)
 
-DATA_FILE = "data.json"
+# --- CRITICAL FIX: USE CORRECT STORAGE PATH ---
+def get_data_path():
+    # On Android, we must use the app's user_data_dir
+    app = MDApp.get_running_app()
+    if platform == 'android':
+        storage_dir = app.user_data_dir
+    else:
+        # On PC, use the current folder
+        storage_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    return os.path.join(storage_dir, "data.json")
 
 def load_data():
-    if not os.path.exists(DATA_FILE):
+    path = get_data_path()
+    if not os.path.exists(path):
         return {"accounts": {}, "cards": {}, "active_trades": {}}
     try:
-        with open(DATA_FILE, "r") as f:
+        with open(path, "r") as f:
             data = json.load(f)
             if "accounts" not in data: data["accounts"] = {}
             if "cards" not in data: data["cards"] = {}
@@ -39,11 +51,12 @@ def load_data():
         return {"accounts": {}, "cards": {}, "active_trades": {}}
 
 def save_data(data):
+    path = get_data_path()
     try:
-        with open(DATA_FILE, "w") as f:
+        with open(path, "w") as f:
             json.dump(data, f, indent=4)
-    except:
-        pass
+    except Exception as e:
+        print(f"Save Failed: {e}")
 
 # --- BASE SCREEN ---
 class BaseScreen(MDScreen):
@@ -77,42 +90,46 @@ class MenuScreen(BaseScreen):
             )
             layout.add_widget(btn)
         
-        # Settings Button (Small, at bottom)
+        # Settings Button
         layout.add_widget(MDLabel(size_hint_y=None, height="20dp"))
         setting_btn = MDIconButton(icon="cog", pos_hint={"center_x": 0.5}, theme_text_color="Custom", text_color=(0.5,0.5,0.5,1), on_release=lambda x: self.go_to('settings'))
         layout.add_widget(setting_btn)
 
         self.add_widget(layout)
 
+        ver = MDLabel(text="v7.0 Storage Fix", halign="right", theme_text_color="Secondary", font_style="Caption", pos_hint={'right': 0.95, 'y': 0.02}, size_hint=(None, None), size=("100dp", "20dp"))
+        self.add_widget(ver)
+
     def go_to(self, route):
         self.manager.transition = NoTransition()
         self.manager.current = route
 
-# --- SETTINGS SCREEN (Reset Data Moved Here) ---
+# --- SETTINGS SCREEN ---
 class SettingsScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         layout = MDBoxLayout(orientation='vertical', spacing="20dp", padding="40dp")
-        
         layout.add_widget(MDLabel(text="SETTINGS", halign="center", font_style="H5"))
         
-        btn_reset = MDFillRoundFlatButton(
-            text="DELETE ALL DATA", 
-            md_bg_color=(0.8, 0, 0, 1), 
-            size_hint=(1, None),
-            on_release=self.reset_data
-        )
+        # Path Debug
+        self.path_lbl = MDLabel(text="Storage: Checking...", halign="center", font_style="Caption")
+        layout.add_widget(self.path_lbl)
+
+        btn_reset = MDFillRoundFlatButton(text="DELETE ALL DATA", md_bg_color=(0.8, 0, 0, 1), size_hint=(1, None), on_release=self.reset_data)
         layout.add_widget(btn_reset)
         
         btn_back = MDFillRoundFlatButton(text="BACK TO MENU", on_release=lambda x: setattr(self.manager, 'current', 'menu'))
         layout.add_widget(btn_back)
-        
-        layout.add_widget(MDLabel()) # Spacer
+        layout.add_widget(MDLabel())
         self.add_widget(layout)
 
+    def on_enter(self):
+        self.path_lbl.text = f"Storage:\n{get_data_path()}"
+
     def reset_data(self, _):
-        if os.path.exists(DATA_FILE):
-            os.remove(DATA_FILE)
+        path = get_data_path()
+        if os.path.exists(path):
+            os.remove(path)
         self.manager.current = 'menu'
 
 # --- 1. BLACK MARKET ---
@@ -273,7 +290,6 @@ class InventoryListScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         main_box = MDBoxLayout(orientation='vertical')
-        
         main_box.add_widget(MDFillRoundFlatButton(text="< MENU", size_hint=(1, None), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
         main_box.add_widget(MDLabel(text="My Inventory", halign="center", font_style="H6", size_hint_y=None, height="40dp"))
 
@@ -281,7 +297,6 @@ class InventoryListScreen(BaseScreen):
         self.list_view = MDList()
         scroll.add_widget(self.list_view)
         main_box.add_widget(scroll)
-        
         self.add_widget(main_box)
         
         fab = MDFloatingActionButton(icon="plus", md_bg_color=(0.2, 0.6, 0.8, 1), pos_hint={'right': 0.95, 'y': 0.05})
@@ -299,8 +314,9 @@ class InventoryListScreen(BaseScreen):
         self.list_view.clear_widgets()
         data = load_data()
         accounts = data.get("accounts", {})
+        if not accounts:
+            self.list_view.add_widget(OneLineListItem(text="No Accounts. Tap +"))
         for name in accounts:
-            # FIX: Use name=name to bind value correctly in loop
             btn = OneLineListItem(text=name, on_release=lambda x, n=name: self.open_account(n))
             self.list_view.add_widget(btn)
 
@@ -313,7 +329,6 @@ class InventoryEditScreen(BaseScreen):
         super().__init__(**kwargs)
         self.account_name = ""
         main_box = MDBoxLayout(orientation='vertical')
-        
         main_box.add_widget(MDFillRoundFlatButton(text="< BACK", size_hint=(1, None), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=self.go_back))
         self.toolbar_lbl = MDLabel(text="Items", halign="center", font_style="H6", size_hint_y=None, height="40dp")
         main_box.add_widget(self.toolbar_lbl)
@@ -325,7 +340,6 @@ class InventoryEditScreen(BaseScreen):
         
         main_box.add_widget(MDFillRoundFlatButton(text="ADD ITEM", size_hint=(1, None), on_release=self.show_item_selector))
         main_box.add_widget(MDFillRoundFlatButton(text="DELETE ACCOUNT", size_hint=(1, None), md_bg_color=(0.8,0.2,0.2,1), on_release=self.delete_account))
-        
         self.add_widget(main_box)
         self.bs = None
 
@@ -339,7 +353,6 @@ class InventoryEditScreen(BaseScreen):
         data = load_data()
         items = data["accounts"].get(self.account_name, {}).get("items", {})
         for item_name, qty in items.items():
-            # FIX: Use default arguments for lambda to prevent crash
             btn = OneLineListItem(text=f"{item_name}: {qty}", on_release=lambda x, i=item_name, q=qty: self.edit_item(i, q))
             self.list_view.add_widget(btn)
 
@@ -437,7 +450,7 @@ class EditItemQtyScreen(BaseScreen):
 
     def go_back(self):
         self.manager.current = 'inventory_edit'
-        self.manager.get_screen('inventory_edit').refresh_items()
+        self.manager.get_screen('inventory_edit').load_account(self.acc_name)
 
 # --- 5. TRADES ---
 class TradeListScreen(BaseScreen):
@@ -452,7 +465,6 @@ class TradeListScreen(BaseScreen):
         self.list_view = MDList()
         scroll.add_widget(self.list_view)
         main_box.add_widget(scroll)
-        
         self.add_widget(main_box)
 
     def on_enter(self):
@@ -652,6 +664,8 @@ class CardListScreen(BaseScreen):
         self.list_view.clear_widgets()
         data = load_data()
         cards = data.get("cards", {})
+        if not cards:
+            self.list_view.add_widget(OneLineListItem(text="No Accounts"))
         for name in cards:
             btn = OneLineListItem(text=name, on_release=lambda x, n=name: self.open_cards(n))
             self.list_view.add_widget(btn)
@@ -704,7 +718,7 @@ class CardEditScreen(BaseScreen):
         cards = data["cards"].get(self.account_name, [])
         for i, c in enumerate(cards):
             btn = OneLineListItem(
-                text=f"{c['name']} (T{c['tier']}) : {c['qty']}",
+                text=f"{c['name']} (T{c['tier']}) : {c['qty']} (Tap to Del)",
                 on_release=lambda x, idx=i: self.delete_card(idx)
             )
             self.list_view.add_widget(btn)
@@ -736,22 +750,30 @@ class UltimateApp(MDApp):
     def build(self):
         self.theme_cls.theme_style = "Dark"
         self.theme_cls.primary_palette = "DeepPurple"
-        sm = ScreenManager(transition=NoTransition())
-        sm.add_widget(MenuScreen(name='menu'))
-        sm.add_widget(SettingsScreen(name='settings'))
-        sm.add_widget(MarketScreen(name='market'))
-        sm.add_widget(CraftingScreen(name='crafting'))
-        sm.add_widget(AddAccountScreen(name='add_account'))
-        sm.add_widget(InventoryListScreen(name='inventory_list'))
-        sm.add_widget(InventoryEditScreen(name='inventory_edit'))
-        sm.add_widget(EditItemQtyScreen(name='edit_item_qty'))
-        sm.add_widget(TradeListScreen(name='trade_list'))
-        sm.add_widget(TradeRecipientsScreen(name='trade_recipients'))
-        sm.add_widget(AddRecipientScreen(name='add_recipient'))
-        sm.add_widget(TradeDetailsScreen(name='trade_details'))
-        sm.add_widget(CardListScreen(name='card_list'))
-        sm.add_widget(CardEditScreen(name='card_edit'))
-        return sm
+        
+        # GLOBAL CRASH CATCHER FOR STARTUP
+        try:
+            sm = ScreenManager(transition=NoTransition())
+            sm.add_widget(MenuScreen(name='menu'))
+            sm.add_widget(SettingsScreen(name='settings'))
+            sm.add_widget(MarketScreen(name='market'))
+            sm.add_widget(CraftingScreen(name='crafting'))
+            sm.add_widget(AddAccountScreen(name='add_account'))
+            sm.add_widget(InventoryListScreen(name='inventory_list'))
+            sm.add_widget(InventoryEditScreen(name='inventory_edit'))
+            sm.add_widget(EditItemQtyScreen(name='edit_item_qty'))
+            sm.add_widget(TradeListScreen(name='trade_list'))
+            sm.add_widget(TradeRecipientsScreen(name='trade_recipients'))
+            sm.add_widget(AddRecipientScreen(name='add_recipient'))
+            sm.add_widget(TradeDetailsScreen(name='trade_details'))
+            sm.add_widget(CardListScreen(name='card_list'))
+            sm.add_widget(CardEditScreen(name='card_edit'))
+            return sm
+        except Exception as e:
+            # Fallback screen if build fails
+            err_screen = MDScreen()
+            err_screen.add_widget(MDLabel(text=f"CRITICAL ERROR:\n{str(e)}", halign="center"))
+            return err_screen
 
 if __name__ == '__main__':
     UltimateApp().run()
