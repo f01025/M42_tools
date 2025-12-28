@@ -2,14 +2,13 @@ import json
 import os
 import math
 import traceback
-from datetime import datetime
+from functools import partial
 from kivy.clock import Clock
 from kivymd.app import MDApp
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.button import MDFillRoundFlatButton, MDIconButton, MDRaisedButton, MDFlatButton, MDFloatingActionButton
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.gridlayout import MDGridLayout
-from kivymd.uix.list import MDList, OneLineListItem
 from kivymd.uix.label import MDLabel
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.card import MDCard
@@ -19,7 +18,7 @@ from kivy.uix.screenmanager import ScreenManager, NoTransition
 from kivy.core.window import Window
 from kivy.utils import platform
 
-# --- VERSION 5.2 (SAFE MODE) ---
+# --- VERSION 5.3 (BUTTON LIST MODE) ---
 
 if platform not in ['android', 'ios']:
     Window.size = (360, 800)
@@ -57,7 +56,8 @@ class MenuScreen(BaseScreen):
         layout.pos_hint = {"center_x": 0.5, "center_y": 0.5}
         layout.adaptive_height = True
 
-        layout.add_widget(MDLabel(text="ULTIMATE TOOLKIT", halign="center", font_style="H4", theme_text_color="Custom", text_color=(1, 1, 1, 1)))
+        title = MDLabel(text="ULTIMATE TOOLKIT", halign="center", font_style="H4", theme_text_color="Custom", text_color=(1, 1, 1, 1))
+        layout.add_widget(title)
         
         btns = [
             ("BLACK MARKET", (0.9, 0.3, 0.2, 1), 'market'),
@@ -76,7 +76,7 @@ class MenuScreen(BaseScreen):
         
         self.add_widget(layout)
         
-        ver = MDLabel(text="v5.2 Safe Mode", halign="right", theme_text_color="Secondary", font_style="Caption", pos_hint={'right': 0.95, 'y': 0.02}, size_hint=(None, None), size=("100dp", "20dp"))
+        ver = MDLabel(text="v5.3 Stability", halign="right", theme_text_color="Secondary", font_style="Caption", pos_hint={'right': 0.95, 'y': 0.02}, size_hint=(None, None), size=("100dp", "20dp"))
         self.add_widget(ver)
 
     def go_to(self, route):
@@ -88,11 +88,8 @@ class MarketScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         main_box = MDBoxLayout(orientation='vertical')
-        
-        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
-        header.add_widget(MDFillRoundFlatButton(text="< GO BACK", size_hint=(0.4, 1), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
-        header.add_widget(MDLabel(text="Black Market", halign="center", font_style="H5"))
-        main_box.add_widget(header)
+        main_box.add_widget(MDFillRoundFlatButton(text="< GO BACK", size_hint=(1, None), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
+        main_box.add_widget(MDLabel(text="Black Market", halign="center", font_style="H5", size_hint_y=None, height="50dp"))
 
         scroll = MDScrollView()
         container = MDBoxLayout(orientation='vertical', spacing="20dp", padding="20dp", adaptive_height=True)
@@ -145,11 +142,8 @@ class CraftingScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         main_box = MDBoxLayout(orientation='vertical')
-        
-        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
-        header.add_widget(MDFillRoundFlatButton(text="< GO BACK", size_hint=(0.4, 1), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
-        header.add_widget(MDLabel(text="Tier Calc", halign="center", font_style="H5"))
-        main_box.add_widget(header)
+        main_box.add_widget(MDFillRoundFlatButton(text="< GO BACK", size_hint=(1, None), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
+        main_box.add_widget(MDLabel(text="Tier Calc", halign="center", font_style="H5", size_hint_y=None, height="50dp"))
 
         scroll = MDScrollView()
         container = MDBoxLayout(orientation='vertical', spacing="20dp", padding="20dp", adaptive_height=True)
@@ -221,16 +215,11 @@ class AddAccountScreen(BaseScreen):
         super().__init__(**kwargs)
         self.target_screen = "" 
         layout = MDBoxLayout(orientation='vertical', padding="30dp", spacing="20dp")
-        
-        layout.add_widget(MDLabel(text="Create New Account", halign="center", font_style="H5"))
-        self.field = MDTextField(hint_text="Enter Account Name", mode="rectangle")
+        layout.add_widget(MDLabel(text="Create Account", halign="center", font_style="H5"))
+        self.field = MDTextField(hint_text="Name", mode="rectangle")
         layout.add_widget(self.field)
-        
-        btn_save = MDFillRoundFlatButton(text="SAVE ACCOUNT", size_hint=(1, None), md_bg_color=(0.2, 0.8, 0.2, 1), on_release=self.save)
-        layout.add_widget(btn_save)
-        
-        btn_cancel = MDFlatButton(text="CANCEL", size_hint=(1, None), on_release=self.cancel)
-        layout.add_widget(btn_cancel)
+        layout.add_widget(MDFillRoundFlatButton(text="SAVE", on_release=self.save))
+        layout.add_widget(MDFlatButton(text="CANCEL", on_release=self.cancel))
         layout.add_widget(MDLabel())
         self.add_widget(layout)
 
@@ -255,28 +244,23 @@ class AddAccountScreen(BaseScreen):
     def go_back(self):
         self.manager.current = self.target_screen
 
-# --- 4. INVENTORY ---
+# --- 4. INVENTORY (BUTTON GRID MODE) ---
 class InventoryListScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         main_box = MDBoxLayout(orientation='vertical')
         
-        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
-        header.add_widget(MDFillRoundFlatButton(text="< MENU", size_hint=(0.3, 1), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
-        header.add_widget(MDLabel(text="My Inventory", halign="center", font_style="H6"))
-        main_box.add_widget(header)
+        main_box.add_widget(MDFillRoundFlatButton(text="< MENU", size_hint=(1, None), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
+        main_box.add_widget(MDLabel(text="My Inventory", halign="center", font_style="H6", size_hint_y=None, height="40dp"))
 
-        # Status Label for Errors
-        self.status_lbl = MDLabel(text="Status: Ready", size_hint_y=None, height="30dp", halign="center", theme_text_color="Error")
+        # Status Label
+        self.status_lbl = MDLabel(text="Ready", size_hint_y=None, height="30dp", halign="center", theme_text_color="Error")
         main_box.add_widget(self.status_lbl)
 
-        # Load Button (Manual Refresh)
-        btn_load = MDFillRoundFlatButton(text="REFRESH / LOAD LIST", on_release=self.refresh_list)
-        main_box.add_widget(btn_load)
-
+        # BUTTON GRID (Safe Mode)
         scroll = MDScrollView()
-        self.list_view = MDList()
-        scroll.add_widget(self.list_view)
+        self.grid = MDGridLayout(cols=1, spacing="10dp", padding="20dp", adaptive_height=True)
+        scroll.add_widget(self.grid)
         main_box.add_widget(scroll)
         
         self.add_widget(main_box)
@@ -285,31 +269,38 @@ class InventoryListScreen(BaseScreen):
         fab.bind(on_release=self.go_add)
         self.add_widget(fab)
 
+    def on_enter(self):
+        self.refresh_list()
+
     def go_add(self, _):
         self.manager.get_screen('add_account').setup('inventory_list')
         self.manager.current = 'add_account'
 
     def refresh_list(self, _=None):
         try:
-            self.list_view.clear_widgets()
+            self.grid.clear_widgets()
             data = load_data()
             accounts = data.get("accounts", {})
             
             if not accounts:
-                self.status_lbl.text = "No Accounts Found."
-                return
-
-            for name, details in accounts.items():
-                # SAFE MODE: No Icons, Just Text
-                item = OneLineListItem(text=f"{name} ({len(details.get('items', {}))} items)", on_release=lambda x, n=name: self.open_account(n))
-                self.list_view.add_widget(item)
-            
-            self.status_lbl.text = "Loaded Successfully"
-            self.status_lbl.theme_text_color = "Primary"
+                self.status_lbl.text = "No Accounts Found. Tap + to create."
+            else:
+                self.status_lbl.text = ""
+                for name, details in accounts.items():
+                    # USING BUTTONS INSTEAD OF LIST ITEMS TO PREVENT CRASH
+                    count = len(details.get('items', {}))
+                    btn = MDFillRoundFlatButton(
+                        text=f"{name} ({count} items)",
+                        size_hint=(1, None),
+                        height="60dp",
+                        md_bg_color=(0.3, 0.3, 0.3, 1),
+                        on_release=partial(self.open_account, name)
+                    )
+                    self.grid.add_widget(btn)
         except Exception as e:
             self.status_lbl.text = f"Error: {str(e)}"
 
-    def open_account(self, name):
+    def open_account(self, name, instance):
         self.manager.get_screen('inventory_edit').load_account(name)
         self.manager.current = 'inventory_edit'
 
@@ -319,25 +310,18 @@ class InventoryEditScreen(BaseScreen):
         self.account_name = ""
         main_box = MDBoxLayout(orientation='vertical')
         
-        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
-        header.add_widget(MDFillRoundFlatButton(text="< BACK", size_hint=(0.3, 1), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=self.go_back))
-        self.toolbar_lbl = MDLabel(text="Items", halign="center", font_style="H6")
-        header.add_widget(self.toolbar_lbl)
-        main_box.add_widget(header)
-
-        # Status Label
-        self.status_lbl = MDLabel(text="", size_hint_y=None, height="20dp", halign="center", theme_text_color="Error")
-        main_box.add_widget(self.status_lbl)
+        main_box.add_widget(MDFillRoundFlatButton(text="< BACK", size_hint=(1, None), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=self.go_back))
+        self.toolbar_lbl = MDLabel(text="Items", halign="center", font_style="H6", size_hint_y=None, height="40dp")
+        main_box.add_widget(self.toolbar_lbl)
 
         scroll = MDScrollView()
-        self.list_view = MDList()
-        scroll.add_widget(self.list_view)
+        self.grid = MDGridLayout(cols=1, spacing="10dp", padding="20dp", adaptive_height=True)
+        scroll.add_widget(self.grid)
         main_box.add_widget(scroll)
         
-        footer = MDBoxLayout(size_hint_y=None, height="60dp", padding="5dp", spacing="10dp")
-        footer.add_widget(MDFillRoundFlatButton(text="ADD ITEM", size_hint_x=0.7, on_release=self.show_item_selector))
-        footer.add_widget(MDIconButton(icon="trash-can", md_bg_color=(0.8,0.2,0.2,1), on_release=self.delete_account))
-        main_box.add_widget(footer)
+        main_box.add_widget(MDFillRoundFlatButton(text="ADD ITEM", size_hint=(1, None), on_release=self.show_item_selector))
+        main_box.add_widget(MDFillRoundFlatButton(text="DELETE ACCOUNT", size_hint=(1, None), md_bg_color=(0.8,0.2,0.2,1), on_release=self.delete_account))
+        
         self.add_widget(main_box)
         self.bs = None
 
@@ -347,16 +331,18 @@ class InventoryEditScreen(BaseScreen):
         self.refresh_items()
 
     def refresh_items(self):
-        try:
-            self.list_view.clear_widgets()
-            data = load_data()
-            items = data["accounts"].get(self.account_name, {}).get("items", {})
-            for item_name, qty in items.items():
-                # SAFE MODE: Text Only
-                row = OneLineListItem(text=f"{item_name}: {qty}", on_release=lambda x, i=item_name, q=qty: self.edit_item(i, q))
-                self.list_view.add_widget(row)
-        except Exception as e:
-            self.status_lbl.text = f"Error: {str(e)}"
+        self.grid.clear_widgets()
+        data = load_data()
+        items = data["accounts"].get(self.account_name, {}).get("items", {})
+        for item_name, qty in items.items():
+            # BUTTON LIST ITEM
+            btn = MDFillRoundFlatButton(
+                text=f"{item_name}: {qty}",
+                size_hint=(1, None),
+                md_bg_color=(0.2, 0.4, 0.6, 1),
+                on_release=partial(self.edit_item, item_name, qty)
+            )
+            self.grid.add_widget(btn)
 
     def show_item_selector(self, _):
         self.bs = MDGridBottomSheet()
@@ -373,7 +359,7 @@ class InventoryEditScreen(BaseScreen):
         self.manager.get_screen('edit_item_qty').setup(self.account_name, item_name, 0, mode="add")
         self.manager.current = 'edit_item_qty'
 
-    def edit_item(self, item_name, current_qty):
+    def edit_item(self, item_name, current_qty, instance):
         self.manager.get_screen('edit_item_qty').setup(self.account_name, item_name, current_qty, mode="edit")
         self.manager.current = 'edit_item_qty'
 
@@ -398,10 +384,8 @@ class EditItemQtyScreen(BaseScreen):
         self.title_lbl = MDLabel(text="Item", halign="center", font_style="H5")
         layout.add_widget(self.title_lbl)
         
-        card = MDCard(orientation='vertical', padding="20dp", spacing="10dp", size_hint_y=None, height="150dp")
-        self.field = MDTextField(hint_text="Quantity", input_filter="int", mode="rectangle", font_size="24sp", halign="center")
-        card.add_widget(self.field)
-        layout.add_widget(card)
+        self.field = MDTextField(hint_text="Quantity", input_filter="int", mode="rectangle")
+        layout.add_widget(self.field)
         
         self.btn_save = MDFillRoundFlatButton(text="SAVE", size_hint=(1, None), on_release=self.save)
         layout.add_widget(self.btn_save)
@@ -420,13 +404,13 @@ class EditItemQtyScreen(BaseScreen):
         if mode == "add":
             self.title_lbl.text = f"Add {item}"
             self.field.text = ""
-            self.btn_save.text = "ADD TO INVENTORY"
+            self.btn_save.text = "ADD"
             self.btn_del.opacity = 0 
             self.btn_del.disabled = True
         else:
             self.title_lbl.text = f"Edit {item}"
             self.field.text = str(qty)
-            self.btn_save.text = "UPDATE QUANTITY"
+            self.btn_save.text = "UPDATE"
             self.btn_del.opacity = 1
             self.btn_del.disabled = False
 
@@ -454,7 +438,7 @@ class EditItemQtyScreen(BaseScreen):
 
     def go_back(self):
         self.manager.current = 'inventory_edit'
-        self.manager.get_screen('inventory_edit').refresh_items()
+        self.manager.get_screen('inventory_edit').load_account(self.acc_name)
 
 # --- 5. TRADES ---
 class TradeListScreen(BaseScreen):
@@ -462,36 +446,30 @@ class TradeListScreen(BaseScreen):
         super().__init__(**kwargs)
         main_box = MDBoxLayout(orientation='vertical')
         
-        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
-        header.add_widget(MDFillRoundFlatButton(text="< MENU", size_hint=(0.3, 1), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
-        header.add_widget(MDLabel(text="Select Account", halign="center"))
-        main_box.add_widget(header)
+        main_box.add_widget(MDFillRoundFlatButton(text="< MENU", size_hint=(1, None), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
+        main_box.add_widget(MDLabel(text="Select Account", halign="center", size_hint_y=None, height="40dp"))
 
         scroll = MDScrollView()
-        self.list_view = MDList()
-        scroll.add_widget(self.list_view)
+        self.grid = MDGridLayout(cols=1, spacing="10dp", padding="20dp", adaptive_height=True)
+        scroll.add_widget(self.grid)
         main_box.add_widget(scroll)
-        self.add_widget(main_box)
         
-        self.empty_lbl = MDLabel(text="No Accounts", halign="center", theme_text_color="Secondary")
-        self.add_widget(self.empty_lbl)
+        self.add_widget(main_box)
 
     def on_enter(self):
         self.refresh_list()
 
     def refresh_list(self):
-        self.list_view.clear_widgets()
+        self.grid.clear_widgets()
         data = load_data()
         accounts = data.get("accounts", {})
         if not accounts:
-            self.empty_lbl.opacity = 1
-        else:
-            self.empty_lbl.opacity = 0
-            for name in accounts:
-                item = OneLineListItem(text=name, on_release=lambda x, n=name: self.open_recipients(n))
-                self.list_view.add_widget(item)
+            self.grid.add_widget(MDLabel(text="No Accounts", halign="center"))
+        for name in accounts:
+            btn = MDFillRoundFlatButton(text=name, size_hint=(1, None), on_release=partial(self.open_recipients, name))
+            self.grid.add_widget(btn)
 
-    def open_recipients(self, name):
+    def open_recipients(self, name, instance):
         self.manager.get_screen('trade_recipients').load_account(name)
         self.manager.current = 'trade_recipients'
 
@@ -501,21 +479,17 @@ class TradeRecipientsScreen(BaseScreen):
         self.acc_name = ""
         main_box = MDBoxLayout(orientation='vertical')
         
-        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
-        header.add_widget(MDFillRoundFlatButton(text="< BACK", size_hint=(0.3, 1), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'trade_list')))
-        self.title_lbl = MDLabel(text="Recipients", halign="center")
-        header.add_widget(self.title_lbl)
-        main_box.add_widget(header)
+        main_box.add_widget(MDFillRoundFlatButton(text="< BACK", size_hint=(1, None), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'trade_list')))
+        self.title_lbl = MDLabel(text="Recipients", halign="center", size_hint_y=None, height="40dp")
+        main_box.add_widget(self.title_lbl)
 
         scroll = MDScrollView()
-        self.list_view = MDList()
-        scroll.add_widget(self.list_view)
+        self.grid = MDGridLayout(cols=1, spacing="10dp", padding="20dp", adaptive_height=True)
+        scroll.add_widget(self.grid)
         main_box.add_widget(scroll)
-        self.add_widget(main_box)
         
-        fab = MDFloatingActionButton(icon="plus", md_bg_color=(0.8, 0.8, 0.2, 1), pos_hint={'right': 0.95, 'y': 0.05})
-        fab.bind(on_release=self.add_recipient)
-        self.add_widget(fab)
+        main_box.add_widget(MDFillRoundFlatButton(text="ADD RECIPIENT", size_hint=(1, None), on_release=self.add_recipient))
+        self.add_widget(main_box)
 
     def load_account(self, name):
         self.acc_name = name
@@ -523,19 +497,19 @@ class TradeRecipientsScreen(BaseScreen):
         self.refresh_list()
 
     def refresh_list(self):
-        self.list_view.clear_widgets()
+        self.grid.clear_widgets()
         data = load_data()
         recipients = data["active_trades"].get(self.acc_name, {})
         for r_name in recipients:
-            item_count = len(recipients[r_name])
-            row = OneLineListItem(text=f"{r_name} ({item_count} items)", on_release=lambda x, r=r_name: self.open_trade_details(r))
-            self.list_view.add_widget(row)
+            count = len(recipients[r_name])
+            btn = MDFillRoundFlatButton(text=f"{r_name} ({count} pending)", size_hint=(1, None), on_release=partial(self.open_trade_details, r_name))
+            self.grid.add_widget(btn)
 
     def add_recipient(self, _):
         self.manager.get_screen('add_recipient').setup(self.acc_name)
         self.manager.current = 'add_recipient'
 
-    def open_trade_details(self, recipient):
+    def open_trade_details(self, recipient, instance):
         self.manager.get_screen('trade_details').load(self.acc_name, recipient)
         self.manager.current = 'trade_details'
 
@@ -545,9 +519,9 @@ class AddRecipientScreen(BaseScreen):
         self.acc_name = ""
         layout = MDBoxLayout(orientation='vertical', padding="30dp", spacing="20dp")
         layout.add_widget(MDLabel(text="New Recipient", halign="center", font_style="H5"))
-        self.field = MDTextField(hint_text="IGN (In Game Name)", mode="rectangle")
+        self.field = MDTextField(hint_text="IGN", mode="rectangle")
         layout.add_widget(self.field)
-        layout.add_widget(MDFillRoundFlatButton(text="START TRADING", on_release=self.save))
+        layout.add_widget(MDFillRoundFlatButton(text="START", on_release=self.save))
         layout.add_widget(MDFlatButton(text="CANCEL", on_release=self.cancel))
         layout.add_widget(MDLabel())
         self.add_widget(layout)
@@ -576,21 +550,17 @@ class TradeDetailsScreen(BaseScreen):
         self.recipient = ""
         main_box = MDBoxLayout(orientation='vertical')
         
-        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
-        header.add_widget(MDFillRoundFlatButton(text="< BACK", size_hint=(0.3, 1), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=self.go_back))
-        self.title_lbl = MDLabel(text="Trade", halign="center")
-        header.add_widget(self.title_lbl)
-        main_box.add_widget(header)
+        main_box.add_widget(MDFillRoundFlatButton(text="< BACK", size_hint=(1, None), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=self.go_back))
+        self.title_lbl = MDLabel(text="Trade", halign="center", size_hint_y=None, height="40dp")
+        main_box.add_widget(self.title_lbl)
 
         scroll = MDScrollView()
-        self.list_view = MDList()
-        scroll.add_widget(self.list_view)
+        self.grid = MDGridLayout(cols=1, spacing="10dp", padding="20dp", adaptive_height=True)
+        scroll.add_widget(self.grid)
         main_box.add_widget(scroll)
 
-        btns = MDBoxLayout(size_hint_y=None, height="60dp", padding="5dp", spacing="10dp")
-        btns.add_widget(MDFillRoundFlatButton(text="ADD ITEM (1)", on_release=self.add_item_sheet))
-        btns.add_widget(MDFillRoundFlatButton(text="COMPLETE TRADE", md_bg_color=(0.2,0.8,0.2,1), on_release=self.complete_trade))
-        main_box.add_widget(btns)
+        main_box.add_widget(MDFillRoundFlatButton(text="ADD ITEM (1)", size_hint=(1, None), on_release=self.add_item_sheet))
+        main_box.add_widget(MDFillRoundFlatButton(text="COMPLETE TRADE", size_hint=(1, None), md_bg_color=(0.2,0.8,0.2,1), on_release=self.complete_trade))
         self.add_widget(main_box)
         self.bs = None
 
@@ -601,19 +571,18 @@ class TradeDetailsScreen(BaseScreen):
         self.refresh_list()
 
     def refresh_list(self):
-        self.list_view.clear_widgets()
+        self.grid.clear_widgets()
         data = load_data()
         items = data["active_trades"].get(self.acc_name, {}).get(self.recipient, [])
         for idx, item in enumerate(items):
-            # SAFE MODE: Text Only
-            row = OneLineListItem(text=f"{item['name']} - {item['date']}")
-            # Since OneLine can't have buttons, we use tap to delete
-            row.bind(on_release=lambda x, i=idx: self.ask_cancel(i))
-            self.list_view.add_widget(row)
-
-    def ask_cancel(self, index):
-        # In Safe Mode, just cancel immediately for simplicity
-        self.cancel_item(index)
+            # BUTTON LIST ITEM
+            btn = MDFillRoundFlatButton(
+                text=f"{item['name']} ({item['date']}) - Tap to Cancel",
+                size_hint=(1, None),
+                md_bg_color=(0.4, 0.4, 0.4, 1),
+                on_release=partial(self.cancel_item, idx)
+            )
+            self.grid.add_widget(btn)
 
     def add_item_sheet(self, _):
         self.bs = MDGridBottomSheet()
@@ -638,7 +607,7 @@ class TradeDetailsScreen(BaseScreen):
             save_data(data)
             self.refresh_list()
 
-    def cancel_item(self, index):
+    def cancel_item(self, index, instance):
         data = load_data()
         items = data["active_trades"][self.acc_name][self.recipient]
         item_to_remove = items[index]
@@ -665,53 +634,35 @@ class CardListScreen(BaseScreen):
         super().__init__(**kwargs)
         main_box = MDBoxLayout(orientation='vertical')
         
-        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
-        header.add_widget(MDFillRoundFlatButton(text="< MENU", size_hint=(0.3, 1), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
-        header.add_widget(MDLabel(text="Card Accounts", halign="center"))
-        main_box.add_widget(header)
-
-        # Status Label
-        self.status_lbl = MDLabel(text="Status: Ready", size_hint_y=None, height="30dp", halign="center", theme_text_color="Error")
-        main_box.add_widget(self.status_lbl)
-
-        # Load Button
-        btn_load = MDFillRoundFlatButton(text="REFRESH / LOAD LIST", on_release=self.refresh_list)
-        main_box.add_widget(btn_load)
+        main_box.add_widget(MDFillRoundFlatButton(text="< MENU", size_hint=(1, None), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
+        main_box.add_widget(MDLabel(text="Card Accounts", halign="center", size_hint_y=None, height="40dp"))
 
         scroll = MDScrollView()
-        self.list_view = MDList()
-        scroll.add_widget(self.list_view)
+        self.grid = MDGridLayout(cols=1, spacing="10dp", padding="20dp", adaptive_height=True)
+        scroll.add_widget(self.grid)
         main_box.add_widget(scroll)
+        
+        main_box.add_widget(MDFillRoundFlatButton(text="CREATE ACCOUNT", size_hint=(1, None), md_bg_color=(0.6, 0.3, 0.8, 1), on_release=self.go_add))
+        self.add_widget(main_box)
 
-        fab = MDFloatingActionButton(icon="plus", md_bg_color=(0.6, 0.3, 0.8, 1), pos_hint={'right': 0.95, 'y': 0.05})
-        fab.bind(on_release=self.go_add)
-        self.add_widget(fab)
-
-        self.empty_lbl = MDLabel(text="No Card Accounts", halign="center", theme_text_color="Secondary")
-        self.add_widget(self.empty_lbl)
+    def on_enter(self):
+        self.refresh_list()
 
     def go_add(self, _):
         self.manager.get_screen('add_account').setup('card_list')
         self.manager.current = 'add_account'
 
-    def refresh_list(self, _=None):
-        try:
-            self.list_view.clear_widgets()
-            data = load_data()
-            cards = data.get("cards", {})
-            if not cards:
-                self.empty_lbl.opacity = 1
-            else:
-                self.empty_lbl.opacity = 0
-                for name in cards:
-                    item = OneLineListItem(text=name, on_release=lambda x, n=name: self.open_cards(n))
-                    self.list_view.add_widget(item)
-            self.status_lbl.text = "Loaded OK"
-            self.status_lbl.theme_text_color = "Primary"
-        except Exception as e:
-            self.status_lbl.text = f"Error: {str(e)}"
+    def refresh_list(self):
+        self.grid.clear_widgets()
+        data = load_data()
+        cards = data.get("cards", {})
+        if not cards:
+            self.grid.add_widget(MDLabel(text="No Accounts", halign="center"))
+        for name in cards:
+            btn = MDFillRoundFlatButton(text=name, size_hint=(1, None), on_release=partial(self.open_cards, name))
+            self.grid.add_widget(btn)
 
-    def open_cards(self, name):
+    def open_cards(self, name, instance):
         self.manager.get_screen('card_edit').load_account(name)
         self.manager.current = 'card_edit'
 
@@ -721,21 +672,19 @@ class CardEditScreen(BaseScreen):
         self.account_name = ""
         main_box = MDBoxLayout(orientation='vertical', padding="10dp")
         
-        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
-        header.add_widget(MDFillRoundFlatButton(text="< BACK", size_hint=(0.3, 1), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'card_list')))
-        self.title_lbl = MDLabel(text="Cards", halign="center")
-        header.add_widget(self.title_lbl)
-        main_box.add_widget(header)
+        main_box.add_widget(MDFillRoundFlatButton(text="< BACK", size_hint=(1, None), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'card_list')))
+        self.title_lbl = MDLabel(text="Cards", halign="center", size_hint_y=None, height="40dp")
+        main_box.add_widget(self.title_lbl)
 
         form = MDBoxLayout(orientation='vertical', size_hint_y=None, height="140dp", padding="10dp", spacing="5dp")
         row1 = MDBoxLayout(spacing="10dp")
-        self.in_name = MDTextField(hint_text="Card Name")
-        self.in_tier = MDTextField(hint_text="Tier (1-6)", size_hint_x=0.3, input_filter="int")
+        self.in_name = MDTextField(hint_text="Name")
+        self.in_tier = MDTextField(hint_text="Tier")
         row1.add_widget(self.in_name)
         row1.add_widget(self.in_tier)
         row2 = MDBoxLayout(spacing="10dp")
         self.in_qty = MDTextField(hint_text="Qty", input_filter="int")
-        btn = MDRaisedButton(text="ADD CARD", on_release=self.add_card)
+        btn = MDRaisedButton(text="ADD", on_release=self.add_card)
         row2.add_widget(self.in_qty)
         row2.add_widget(btn)
         form.add_widget(row1)
@@ -743,11 +692,11 @@ class CardEditScreen(BaseScreen):
         main_box.add_widget(form)
 
         scroll = MDScrollView()
-        self.list_view = MDList()
-        scroll.add_widget(self.list_view)
+        self.grid = MDGridLayout(cols=1, spacing="10dp", padding="20dp", adaptive_height=True)
+        scroll.add_widget(self.grid)
         main_box.add_widget(scroll)
-        del_btn = MDFillRoundFlatButton(text="DELETE ACCOUNT", md_bg_color=(0.8,0.2,0.2,1), on_release=self.delete_account)
-        main_box.add_widget(del_btn)
+        
+        main_box.add_widget(MDFillRoundFlatButton(text="DELETE ACCOUNT", size_hint=(1, None), md_bg_color=(0.8,0.2,0.2,1), on_release=self.delete_account))
         self.add_widget(main_box)
 
     def load_account(self, name):
@@ -756,12 +705,16 @@ class CardEditScreen(BaseScreen):
         self.refresh_list()
 
     def refresh_list(self):
-        self.list_view.clear_widgets()
+        self.grid.clear_widgets()
         data = load_data()
         cards = data["cards"].get(self.account_name, [])
         for i, c in enumerate(cards):
-            row = OneLineListItem(text=f"{c['name']} (T{c['tier']}) - Qty: {c['qty']}", on_release=lambda x, idx=i: self.delete_card(idx))
-            self.list_view.add_widget(row)
+            btn = MDFillRoundFlatButton(
+                text=f"{c['name']} (T{c['tier']}) : {c['qty']} (Tap to Del)",
+                size_hint=(1, None),
+                on_release=partial(self.delete_card, i)
+            )
+            self.grid.add_widget(btn)
 
     def add_card(self, _):
         if self.in_name.text and self.in_qty.text:
@@ -773,7 +726,7 @@ class CardEditScreen(BaseScreen):
             self.in_name.text = ""
             self.in_qty.text = ""
 
-    def delete_card(self, index):
+    def delete_card(self, index, instance):
         data = load_data()
         del data["cards"][self.account_name][index]
         save_data(data)
