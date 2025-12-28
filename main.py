@@ -8,13 +8,12 @@ from kivymd.uix.screen import MDScreen
 from kivymd.uix.button import MDFillRoundFlatButton, MDIconButton, MDRaisedButton, MDFlatButton, MDFloatingActionButton
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.gridlayout import MDGridLayout
-from kivymd.uix.list import MDList, TwoLineAvatarIconListItem, ImageLeftWidget, IconRightWidget, ThreeLineIconListItem, OneLineIconListItem
+from kivymd.uix.list import MDList, TwoLineAvatarIconListItem, ImageLeftWidget, IconRightWidget, ThreeLineIconListItem, IconLeftWidget
 from kivymd.uix.label import MDLabel
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.card import MDCard
 from kivymd.uix.scrollview import MDScrollView
 from kivymd.uix.bottomsheet import MDGridBottomSheet
-from kivymd.uix.toolbar import MDTopAppBar
 from kivy.uix.screenmanager import ScreenManager, NoTransition
 from kivy.core.window import Window
 from kivy.utils import platform
@@ -32,7 +31,6 @@ def load_data():
     try:
         with open(DATA_FILE, "r") as f:
             data = json.load(f)
-            # Ensure keys exist
             if "accounts" not in data: data["accounts"] = {}
             if "cards" not in data: data["cards"] = {}
             if "active_trades" not in data: data["active_trades"] = {}
@@ -44,26 +42,25 @@ def save_data(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-# --- ASSET MAPPING ---
-ITEM_MAP = {
-    "Hack Envelope": "assets/hack.png",
-    "Nobi Envelope": "assets/nobi.png",
-    "Beach Envelope": "assets/beach.png",
-    "Halloween Envelope": "assets/halloween.png",
-    "Xmas Envelope": "assets/xmas.png",
-    "Toy Envelope": "assets/toy.png",
-    "Ghost Envelope": "assets/ghost.png",
-    "NYPC Envelope": "assets/nypc.png",
-    "Santa Envelope": "assets/santa.png",
-    "10th Anniversary": "assets/10thAni.png",
-    "4th Anniversary": "assets/4thAni.png",
-    "Puni Envelope": "assets/puni.png",
-    "Negative Envelope": "assets/neg.png",
-    "Dice Envelope": "assets/dice.png",
-    "Surprise Envelope": "assets/surp.png",
-    "Luxury Envelope": "assets/lux.png",
-    "Basic Envelope": "assets/bas.png"
-}
+# --- ASSET MAPPING (Fixed Pathing) ---
+# We use a helper to get the absolute path
+def get_asset(name):
+    # Map friendly names to filenames
+    filenames = {
+        "Hack Envelope": "hack.png", "Nobi Envelope": "nobi.png",
+        "Beach Envelope": "beach.png", "Halloween Envelope": "halloween.png",
+        "Xmas Envelope": "xmas.png", "Toy Envelope": "toy.png",
+        "Ghost Envelope": "ghost.png", "NYPC Envelope": "nypc.png",
+        "Santa Envelope": "santa.png", "10th Anniversary": "10thAni.png",
+        "4th Anniversary": "4thAni.png", "Puni Envelope": "puni.png",
+        "Negative Envelope": "neg.png", "Dice Envelope": "dice.png",
+        "Surprise Envelope": "surp.png", "Luxury Envelope": "lux.png",
+        "Basic Envelope": "bas.png"
+    }
+    
+    fname = filenames.get(name, "hack.png")
+    # Return absolute path
+    return os.path.join(os.path.dirname(__file__), 'assets', fname)
 
 # --- BASE SCREEN ---
 class BaseScreen(MDScreen):
@@ -108,6 +105,10 @@ class MarketScreen(BaseScreen):
         super().__init__(**kwargs)
         scroll = MDScrollView()
         container = MDBoxLayout(orientation='vertical', spacing="20dp", padding="20dp", adaptive_height=True)
+        
+        # Header with BIG BACK BUTTON
+        container.add_widget(MDFillRoundFlatButton(text="< GO BACK", md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
+        
         container.add_widget(MDLabel(text="Black Market", halign="center", font_style="H4"))
         
         input_card = MDCard(orientation='vertical', padding="15dp", spacing="15dp", size_hint_y=None, height="160dp", radius=[15])
@@ -127,7 +128,6 @@ class MarketScreen(BaseScreen):
         grid.add_widget(self.res_rate)
         container.add_widget(grid)
         
-        container.add_widget(MDFillRoundFlatButton(text="BACK", md_bg_color=(0.4, 0.4, 0.4, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
         scroll.add_widget(container)
         self.add_widget(scroll)
 
@@ -145,10 +145,10 @@ class MarketScreen(BaseScreen):
             rubles = float(self.in_rub.text)
             luna = float(self.in_luna.text)
             
-            # Listing Price = Luna * 1.35
+            # Formula: Luna * 1.35
             list_price = luna * 1.35
             
-            # Exchange Rate = (Luna / Rubles) * 1,000,000
+            # Rate: (Luna / Rubles) * 1,000,000
             rate = 0
             if rubles > 0:
                 rate = (luna / rubles) * 1000000.0
@@ -164,6 +164,8 @@ class CraftingScreen(BaseScreen):
         super().__init__(**kwargs)
         scroll = MDScrollView()
         container = MDBoxLayout(orientation='vertical', spacing="20dp", padding="20dp", adaptive_height=True)
+        
+        container.add_widget(MDFillRoundFlatButton(text="< GO BACK", md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
         container.add_widget(MDLabel(text="Tier Calculator", halign="center", font_style="H4"))
         
         container.add_widget(MDLabel(text="I Want To Make:", theme_text_color="Secondary"))
@@ -197,7 +199,6 @@ class CraftingScreen(BaseScreen):
         self.res_card.add_widget(self.res_opt2)
         container.add_widget(self.res_card)
         
-        container.add_widget(MDFillRoundFlatButton(text="BACK", md_bg_color=(0.4,0.4,0.4,1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
         scroll.add_widget(container)
         self.add_widget(scroll)
 
@@ -273,10 +274,11 @@ class InventoryListScreen(BaseScreen):
         super().__init__(**kwargs)
         layout = MDBoxLayout(orientation='vertical')
         
-        # USE MDTopAppBar for Visibility
-        self.toolbar = MDTopAppBar(title="Inventory")
-        self.toolbar.left_action_items = [["arrow-left", lambda x: setattr(self.manager, 'current', 'menu')]]
-        layout.add_widget(self.toolbar)
+        # BIG BACK BUTTON (No fancy Toolbar)
+        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2,0.2,0.2,1))
+        header.add_widget(MDFillRoundFlatButton(text="< MENU", md_bg_color=(0.8,0.2,0.2,1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
+        header.add_widget(MDLabel(text="My Inventory", halign="center", font_style="H6"))
+        layout.add_widget(header)
 
         scroll = MDScrollView()
         self.list_view = MDList()
@@ -291,7 +293,8 @@ class InventoryListScreen(BaseScreen):
         self.add_widget(self.empty_lbl)
 
     def on_enter(self):
-        self.refresh_list()
+        # Using Clock to ensure screen builds before data loads (Prevents Crash)
+        Clock.schedule_once(self.refresh_list, 0.1)
 
     def go_add(self, _):
         self.manager.get_screen('add_account').setup('inventory_list')
@@ -307,22 +310,13 @@ class InventoryListScreen(BaseScreen):
         else:
             self.empty_lbl.opacity = 0
             for name, details in accounts.items():
+                # SAFETY: Using IconLeftWidget (safe) instead of Image (risky) for this list
                 item = TwoLineAvatarIconListItem(
                     text=name, 
                     secondary_text=f"Items: {len(details.get('items', {}))}",
                     on_release=lambda x, n=name: self.open_account(n)
                 )
-                
-                # SAFE IMAGE LOADING
-                try:
-                    icon_src = "assets/bas.png" if os.path.exists("assets/bas.png") else "assets/hack.png"
-                    if os.path.exists(icon_src): 
-                        item.add_widget(ImageLeftWidget(source=icon_src))
-                    else:
-                        item.add_widget(IconRightWidget(icon="account"))
-                except:
-                    item.add_widget(IconRightWidget(icon="account"))
-                    
+                item.add_widget(IconLeftWidget(icon="account-circle")) # SAFE ICON
                 self.list_view.add_widget(item)
 
     def open_account(self, name):
@@ -335,9 +329,11 @@ class InventoryEditScreen(BaseScreen):
         self.account_name = ""
         layout = MDBoxLayout(orientation='vertical')
         
-        self.toolbar = MDTopAppBar(title="Inventory")
-        self.toolbar.left_action_items = [["arrow-left", self.go_back]]
-        layout.add_widget(self.toolbar)
+        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2,0.2,0.2,1))
+        header.add_widget(MDFillRoundFlatButton(text="< BACK", md_bg_color=(0.8,0.2,0.2,1), on_release=self.go_back))
+        self.toolbar_lbl = MDLabel(text="Inventory", halign="center", font_style="H6")
+        header.add_widget(self.toolbar_lbl)
+        layout.add_widget(header)
 
         scroll = MDScrollView()
         self.list_view = MDList()
@@ -353,33 +349,36 @@ class InventoryEditScreen(BaseScreen):
 
     def load_account(self, name):
         self.account_name = name
-        self.toolbar.title = name
-        # Only refresh on enter to avoid premature loading
-        self.refresh_items()
+        self.toolbar_lbl.text = name
+        Clock.schedule_once(self.refresh_items, 0.1)
 
     def refresh_items(self, dt=0):
         self.list_view.clear_widgets()
         data = load_data()
         items = data["accounts"].get(self.account_name, {}).get("items", {})
         for item_name, qty in items.items():
+            # Try to use image, fallback to icon if missing/crash
             try:
-                img_src = ITEM_MAP.get(item_name, "assets/hack.png")
-                if not os.path.exists(img_src): img_src = "assets/hack.png"
+                img_path = get_asset(item_name)
                 row = TwoLineAvatarIconListItem(
                     text=item_name, 
                     secondary_text=f"Quantity: {qty}",
                     on_release=lambda x, i=item_name, q=qty: self.edit_item(i, q)
                 )
-                row.add_widget(ImageLeftWidget(source=img_src))
+                if os.path.exists(img_path):
+                    row.add_widget(ImageLeftWidget(source=img_path))
+                else:
+                    row.add_widget(IconLeftWidget(icon="cube"))
                 self.list_view.add_widget(row)
             except:
                 pass
 
     def show_item_selector(self, _):
         self.bs = MDGridBottomSheet()
-        for name, src in ITEM_MAP.items():
-            if not os.path.exists(src): continue
-            self.bs.add_item(name, lambda x, n=name: self.ask_qty(n), icon_src=src)
+        for name in ITEM_MAP.keys():
+            path = get_asset(name)
+            if os.path.exists(path):
+                self.bs.add_item(name, lambda x, n=name: self.ask_qty(n), icon_src=path)
         self.bs.open()
 
     def ask_qty(self, item_name):
@@ -476,10 +475,11 @@ class TradeListScreen(BaseScreen):
         super().__init__(**kwargs)
         layout = MDBoxLayout(orientation='vertical')
         
-        # FIX: Visible Toolbar
-        self.toolbar = MDTopAppBar(title="Select Account")
-        self.toolbar.left_action_items = [["arrow-left", lambda x: setattr(self.manager, 'current', 'menu')]]
-        layout.add_widget(self.toolbar)
+        # BIG VISIBLE HEADER
+        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2,0.2,0.2,1))
+        header.add_widget(MDFillRoundFlatButton(text="< MENU", md_bg_color=(0.8,0.2,0.2,1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
+        header.add_widget(MDLabel(text="Select Account", halign="center"))
+        layout.add_widget(header)
 
         scroll = MDScrollView()
         self.list_view = MDList()
@@ -489,7 +489,7 @@ class TradeListScreen(BaseScreen):
         self.add_widget(self.empty_lbl)
 
     def on_enter(self):
-        self.refresh_list()
+        Clock.schedule_once(self.refresh_list, 0.1)
 
     def refresh_list(self, dt=0):
         self.list_view.clear_widgets()
@@ -501,7 +501,8 @@ class TradeListScreen(BaseScreen):
             self.empty_lbl.opacity = 0
             for name in accounts:
                 item = TwoLineAvatarIconListItem(text=name, secondary_text="Manage Trades", on_release=lambda x, n=name: self.open_recipients(n))
-                item.add_widget(IconRightWidget(icon="account-switch"))
+                item.add_widget(IconLeftWidget(icon="account-circle")) # Safe Icon
+                item.add_widget(IconRightWidget(icon="chevron-right"))
                 self.list_view.add_widget(item)
 
     def open_recipients(self, name):
@@ -514,9 +515,11 @@ class TradeRecipientsScreen(BaseScreen):
         self.acc_name = ""
         layout = MDBoxLayout(orientation='vertical')
         
-        self.toolbar = MDTopAppBar(title="Recipients")
-        self.toolbar.left_action_items = [["arrow-left", lambda x: setattr(self.manager, 'current', 'trade_list')]]
-        layout.add_widget(self.toolbar)
+        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2,0.2,0.2,1))
+        header.add_widget(MDFillRoundFlatButton(text="< BACK", md_bg_color=(0.8,0.2,0.2,1), on_release=lambda x: setattr(self.manager, 'current', 'trade_list')))
+        self.title_lbl = MDLabel(text="Recipients", halign="center")
+        header.add_widget(self.title_lbl)
+        layout.add_widget(header)
 
         scroll = MDScrollView()
         self.list_view = MDList()
@@ -529,8 +532,8 @@ class TradeRecipientsScreen(BaseScreen):
 
     def load_account(self, name):
         self.acc_name = name
-        self.toolbar.title = f"Trades: {name}"
-        self.refresh_list()
+        self.title_lbl.text = f"Trades: {name}"
+        Clock.schedule_once(self.refresh_list, 0.1)
 
     def refresh_list(self, dt=0):
         self.list_view.clear_widgets()
@@ -539,6 +542,7 @@ class TradeRecipientsScreen(BaseScreen):
         for r_name in recipients:
             item_count = len(recipients[r_name])
             row = TwoLineAvatarIconListItem(text=r_name, secondary_text=f"{item_count} Items Pending", on_release=lambda x, r=r_name: self.open_trade_details(r))
+            row.add_widget(IconLeftWidget(icon="account"))
             row.add_widget(IconRightWidget(icon="chevron-right"))
             self.list_view.add_widget(row)
 
@@ -587,9 +591,11 @@ class TradeDetailsScreen(BaseScreen):
         self.recipient = ""
         layout = MDBoxLayout(orientation='vertical')
         
-        self.toolbar = MDTopAppBar(title="Trade")
-        self.toolbar.left_action_items = [["arrow-left", self.go_back]]
-        layout.add_widget(self.toolbar)
+        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2,0.2,0.2,1))
+        header.add_widget(MDFillRoundFlatButton(text="< BACK", md_bg_color=(0.8,0.2,0.2,1), on_release=self.go_back))
+        self.title_lbl = MDLabel(text="Trade", halign="center")
+        header.add_widget(self.title_lbl)
+        layout.add_widget(header)
 
         scroll = MDScrollView()
         self.list_view = MDList()
@@ -606,8 +612,8 @@ class TradeDetailsScreen(BaseScreen):
     def load(self, acc, recipient):
         self.acc_name = acc
         self.recipient = recipient
-        self.toolbar.title = f"Trading with {recipient}"
-        self.refresh_list()
+        self.title_lbl.text = f"Trading with {recipient}"
+        Clock.schedule_once(self.refresh_list, 0.1)
 
     def refresh_list(self, dt=0):
         self.list_view.clear_widgets()
@@ -617,9 +623,13 @@ class TradeDetailsScreen(BaseScreen):
             try:
                 row = TwoLineAvatarIconListItem(text=item['name'], secondary_text=item['date'])
                 icon = IconRightWidget(icon="close-circle", on_release=lambda x, i=idx: self.cancel_item(i))
-                img_src = ITEM_MAP.get(item['name'], "assets/hack.png")
-                if not os.path.exists(img_src): img_src = "assets/hack.png"
-                row.add_widget(ImageLeftWidget(source=img_src))
+                
+                img_path = get_asset(item['name'])
+                if os.path.exists(img_path):
+                    row.add_widget(ImageLeftWidget(source=img_path))
+                else:
+                    row.add_widget(IconLeftWidget(icon="cube"))
+                    
                 row.add_widget(icon)
                 self.list_view.add_widget(row)
             except:
@@ -627,9 +637,10 @@ class TradeDetailsScreen(BaseScreen):
 
     def add_item_sheet(self, _):
         self.bs = MDGridBottomSheet()
-        for name, src in ITEM_MAP.items():
-            if not os.path.exists(src): continue
-            self.bs.add_item(name, lambda x, n=name: self.add_item(n), icon_src=src)
+        for name in ITEM_MAP.keys():
+            path = get_asset(name)
+            if os.path.exists(path):
+                self.bs.add_item(name, lambda x, n=name: self.add_item(n), icon_src=path)
         self.bs.open()
 
     def add_item(self, item_name):
@@ -672,10 +683,10 @@ class CardListScreen(BaseScreen):
         super().__init__(**kwargs)
         layout = MDBoxLayout(orientation='vertical')
         
-        # FIX: Top Bar
-        self.toolbar = MDTopAppBar(title="Cards")
-        self.toolbar.left_action_items = [["arrow-left", lambda x: setattr(self.manager, 'current', 'menu')]]
-        layout.add_widget(self.toolbar)
+        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2,0.2,0.2,1))
+        header.add_widget(MDFillRoundFlatButton(text="< MENU", md_bg_color=(0.8,0.2,0.2,1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
+        header.add_widget(MDLabel(text="My Cards", halign="center"))
+        layout.add_widget(header)
 
         scroll = MDScrollView()
         self.list_view = MDList()
@@ -690,7 +701,7 @@ class CardListScreen(BaseScreen):
         self.add_widget(self.empty_lbl)
 
     def on_enter(self):
-        self.refresh_list()
+        Clock.schedule_once(self.refresh_list, 0.1)
 
     def go_add(self, _):
         self.manager.get_screen('add_account').setup('card_list')
@@ -705,8 +716,10 @@ class CardListScreen(BaseScreen):
         else:
             self.empty_lbl.opacity = 0
             for name in cards:
+                # SAFETY: Use IconLeftWidget
                 item = TwoLineAvatarIconListItem(text=name, secondary_text="Tap to view cards", on_release=lambda x, n=name: self.open_cards(n))
-                item.add_widget(IconRightWidget(icon="cards"))
+                item.add_widget(IconLeftWidget(icon="cards"))
+                item.add_widget(IconRightWidget(icon="chevron-right"))
                 self.list_view.add_widget(item)
 
     def open_cards(self, name):
@@ -719,9 +732,11 @@ class CardEditScreen(BaseScreen):
         self.account_name = ""
         layout = MDBoxLayout(orientation='vertical', padding="10dp")
         
-        self.toolbar = MDTopAppBar(title="Cards")
-        self.toolbar.left_action_items = [["arrow-left", lambda x: setattr(self.manager, 'current', 'card_list')]]
-        layout.add_widget(self.toolbar)
+        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2,0.2,0.2,1))
+        header.add_widget(MDFillRoundFlatButton(text="< BACK", md_bg_color=(0.8,0.2,0.2,1), on_release=lambda x: setattr(self.manager, 'current', 'card_list')))
+        self.title_lbl = MDLabel(text="Cards", halign="center")
+        header.add_widget(self.title_lbl)
+        layout.add_widget(header)
 
         form = MDBoxLayout(orientation='vertical', size_hint_y=None, height="140dp", padding="10dp", spacing="5dp")
         row1 = MDBoxLayout(spacing="10dp")
@@ -748,8 +763,8 @@ class CardEditScreen(BaseScreen):
 
     def load_account(self, name):
         self.account_name = name
-        self.toolbar.title = f"{name}'s Cards"
-        self.refresh_list()
+        self.title_lbl.text = f"{name}'s Cards"
+        Clock.schedule_once(self.refresh_list, 0.1)
 
     def refresh_list(self, dt=0):
         self.list_view.clear_widgets()
