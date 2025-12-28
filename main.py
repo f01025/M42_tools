@@ -16,7 +16,7 @@ from kivymd.uix.bottomsheet import MDGridBottomSheet
 from kivy.uix.screenmanager import ScreenManager, NoTransition
 from kivy.core.window import Window
 from kivy.utils import platform
-from kivy.properties import StringProperty
+from kivy.metrics import dp
 
 # --- WINDOW SIZE FOR PC TESTING ---
 if platform not in ['android', 'ios']:
@@ -63,11 +63,11 @@ ITEM_MAP = {
     "Basic Envelope": "assets/bas.png"
 }
 
-# --- BASE SCREEN (Fixes Blank Screen Issue) ---
+# --- BASE SCREEN (Dark Background) ---
 class BaseScreen(MDScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.md_bg_color = (0.1, 0.1, 0.1, 1) # Force Dark Background
+        self.md_bg_color = (0.1, 0.1, 0.1, 1) 
 
 # --- MENU SCREEN ---
 class MenuScreen(BaseScreen):
@@ -99,11 +99,8 @@ class MenuScreen(BaseScreen):
     def go_to(self, route):
         self.manager.transition = NoTransition()
         self.manager.current = route
-        screen = self.manager.get_screen(route)
-        if hasattr(screen, 'refresh_list'):
-            screen.refresh_list()
 
-# --- 1. BLACK MARKET (FIXED: Listing Price = Luna * 1.35) ---
+# --- 1. BLACK MARKET ---
 class MarketScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -146,11 +143,10 @@ class MarketScreen(BaseScreen):
             rubles = float(self.in_rub.text)
             luna = float(self.in_luna.text)
             
-            # Formula 1: Listing Price = Luna * 1.35
-            # (Matches user's screenshot: 850 * 1.35 = 1147.5 -> 1148)
+            # Listing Price = Luna * 1.35
             list_price = luna * 1.35
             
-            # Formula 2: Exchange Rate = (Luna / Rubles) * 1,000,000
+            # Exchange Rate = (Luna / Rubles) * 1,000,000
             rate = 0
             if rubles > 0:
                 rate = (luna / rubles) * 1000000.0
@@ -160,7 +156,7 @@ class MarketScreen(BaseScreen):
         except:
             self.res_list.val_label.text = "Error"
 
-# --- 2. CRAFTING (UNCHANGED) ---
+# --- 2. CRAFTING ---
 class CraftingScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -213,7 +209,6 @@ class CraftingScreen(BaseScreen):
             i6 = int(self.inv_t6.text or 0)
             
             cost_map = {3:1, 4:4, 5:20, 6:120}
-            
             if t_target not in cost_map:
                 self.res_opt1.text = "Invalid Tier"
                 return
@@ -233,7 +228,7 @@ class CraftingScreen(BaseScreen):
         except: 
             self.res_opt1.text = "Calculation Error"
 
-# --- 3. INVENTORY & ADD ACCOUNT ---
+# --- 3. ADD ACCOUNT SCREEN ---
 class AddAccountScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -269,9 +264,8 @@ class AddAccountScreen(BaseScreen):
 
     def go_back(self):
         self.manager.current = self.target_screen
-        screen = self.manager.get_screen(self.target_screen)
-        if hasattr(screen, 'refresh_list'): screen.refresh_list()
 
+# --- 4. INVENTORY LIST (BLANK SCREEN FIX) ---
 class InventoryListScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -279,12 +273,24 @@ class InventoryListScreen(BaseScreen):
         toolbar = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2,0.2,0.2,1))
         toolbar.add_widget(MDIconButton(icon="arrow-left", on_release=lambda x: setattr(self.manager, 'current', 'menu')))
         toolbar.add_widget(MDLabel(text="Inventory", halign="center", font_style="H6"))
-        toolbar.add_widget(MDIconButton(icon="account-plus", on_release=self.go_add))
         layout.add_widget(toolbar)
+
         scroll = MDScrollView()
         self.list_view = MDList()
         scroll.add_widget(self.list_view)
         layout.add_widget(scroll)
+        
+        # FLOAT BUTTON for visibility
+        fab = MDFloatingActionButton(icon="plus", md_bg_color=(0.2, 0.6, 0.8, 1), pos_hint={'right': 0.95, 'y': 0.05})
+        fab.bind(on_release=self.go_add)
+        self.add_widget(fab)
+
+        # Empty State Label
+        self.empty_lbl = MDLabel(text="No Accounts. Tap +", halign="center", valign="center", theme_text_color="Secondary")
+        self.add_widget(self.empty_lbl)
+
+    def on_enter(self):
+        self.refresh_list()
 
     def go_add(self, _):
         self.manager.get_screen('add_account').setup('inventory_list')
@@ -293,16 +299,22 @@ class InventoryListScreen(BaseScreen):
     def refresh_list(self):
         self.list_view.clear_widgets()
         data = load_data()
-        for name, details in data.get("accounts", {}).items():
-            item = TwoLineAvatarIconListItem(
-                text=name, 
-                secondary_text=f"Items: {len(details.get('items', {}))}",
-                on_release=lambda x, n=name: self.open_account(n)
-            )
-            icon_src = "assets/bas.png" if os.path.exists("assets/bas.png") else "assets/hack.png"
-            if os.path.exists(icon_src): item.add_widget(ImageLeftWidget(source=icon_src))
-            else: item.add_widget(IconRightWidget(icon="account"))
-            self.list_view.add_widget(item)
+        accounts = data.get("accounts", {})
+        
+        if not accounts:
+            self.empty_lbl.opacity = 1
+        else:
+            self.empty_lbl.opacity = 0
+            for name, details in accounts.items():
+                item = TwoLineAvatarIconListItem(
+                    text=name, 
+                    secondary_text=f"Items: {len(details.get('items', {}))}",
+                    on_release=lambda x, n=name: self.open_account(n)
+                )
+                icon_src = "assets/bas.png" if os.path.exists("assets/bas.png") else "assets/hack.png"
+                if os.path.exists(icon_src): item.add_widget(ImageLeftWidget(source=icon_src))
+                else: item.add_widget(IconRightWidget(icon="account"))
+                self.list_view.add_widget(item)
 
     def open_account(self, name):
         self.manager.get_screen('inventory_edit').load_account(name)
@@ -377,7 +389,6 @@ class InventoryEditScreen(BaseScreen):
 
     def go_back(self, _):
         self.manager.current = 'inventory_list'
-        self.manager.get_screen('inventory_list').refresh_list()
 
 class EditItemQtyScreen(BaseScreen):
     def __init__(self, **kwargs):
@@ -409,7 +420,6 @@ class EditItemQtyScreen(BaseScreen):
         self.acc_name = acc
         self.item_name = item
         self.mode = mode
-        
         if mode == "add":
             self.title_lbl.text = f"Add {item}"
             self.field.text = ""
@@ -449,7 +459,7 @@ class EditItemQtyScreen(BaseScreen):
         self.manager.current = 'inventory_edit'
         self.manager.get_screen('inventory_edit').refresh_items()
 
-# --- 4. TRADES (NEW: RECIPIENT -> ADD ITEMS) ---
+# --- 5. TRADES ---
 class TradeListScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -462,14 +472,24 @@ class TradeListScreen(BaseScreen):
         self.list_view = MDList()
         scroll.add_widget(self.list_view)
         layout.add_widget(scroll)
+        self.empty_lbl = MDLabel(text="No Accounts", halign="center", theme_text_color="Secondary")
+        self.add_widget(self.empty_lbl)
+
+    def on_enter(self):
+        self.refresh_list()
 
     def refresh_list(self):
         self.list_view.clear_widgets()
         data = load_data()
-        for name in data.get("accounts", {}):
-            item = TwoLineAvatarIconListItem(text=name, secondary_text="Manage Trades", on_release=lambda x, n=name: self.open_recipients(n))
-            item.add_widget(IconRightWidget(icon="account-switch"))
-            self.list_view.add_widget(item)
+        accounts = data.get("accounts", {})
+        if not accounts:
+            self.empty_lbl.opacity = 1
+        else:
+            self.empty_lbl.opacity = 0
+            for name in accounts:
+                item = TwoLineAvatarIconListItem(text=name, secondary_text="Manage Trades", on_release=lambda x, n=name: self.open_recipients(n))
+                item.add_widget(IconRightWidget(icon="account-switch"))
+                self.list_view.add_widget(item)
 
     def open_recipients(self, name):
         self.manager.get_screen('trade_recipients').load_account(name)
@@ -484,13 +504,16 @@ class TradeRecipientsScreen(BaseScreen):
         toolbar.add_widget(MDIconButton(icon="arrow-left", on_release=lambda x: setattr(self.manager, 'current', 'trade_list')))
         self.title_lbl = MDLabel(text="Recipients", halign="center")
         toolbar.add_widget(self.title_lbl)
-        toolbar.add_widget(MDIconButton(icon="plus", on_release=self.add_recipient))
         layout.add_widget(toolbar)
         scroll = MDScrollView()
         self.list_view = MDList()
         scroll.add_widget(self.list_view)
         layout.add_widget(scroll)
-        self.add_widget(layout)
+        
+        # Add Recipient FAB
+        fab = MDFloatingActionButton(icon="plus", md_bg_color=(0.8, 0.8, 0.2, 1), pos_hint={'right': 0.95, 'y': 0.05})
+        fab.bind(on_release=self.add_recipient)
+        self.add_widget(fab)
 
     def load_account(self, name):
         self.acc_name = name
@@ -579,7 +602,6 @@ class TradeDetailsScreen(BaseScreen):
         self.list_view.clear_widgets()
         data = load_data()
         items = data["active_trades"].get(self.acc_name, {}).get(self.recipient, [])
-        
         for idx, item in enumerate(items):
             row = TwoLineAvatarIconListItem(text=item['name'], secondary_text=item['date'])
             icon = IconRightWidget(icon="close-circle", on_release=lambda x, i=idx: self.cancel_item(i))
@@ -630,7 +652,7 @@ class TradeDetailsScreen(BaseScreen):
         self.manager.current = 'trade_recipients'
         self.manager.get_screen('trade_recipients').load_account(self.acc_name)
 
-# --- 5. CARDS (FIXED CRASH) ---
+# --- 6. CARDS (FIXED BLANK SCREEN) ---
 class CardListScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -638,12 +660,21 @@ class CardListScreen(BaseScreen):
         toolbar = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2,0.2,0.2,1))
         toolbar.add_widget(MDIconButton(icon="arrow-left", on_release=lambda x: setattr(self.manager, 'current', 'menu')))
         toolbar.add_widget(MDLabel(text="Card Accounts", halign="center"))
-        toolbar.add_widget(MDIconButton(icon="account-plus", on_release=self.go_add))
         layout.add_widget(toolbar)
         scroll = MDScrollView()
         self.list_view = MDList()
         scroll.add_widget(self.list_view)
         layout.add_widget(scroll)
+
+        fab = MDFloatingActionButton(icon="plus", md_bg_color=(0.6, 0.3, 0.8, 1), pos_hint={'right': 0.95, 'y': 0.05})
+        fab.bind(on_release=self.go_add)
+        self.add_widget(fab)
+
+        self.empty_lbl = MDLabel(text="No Card Accounts", halign="center", theme_text_color="Secondary")
+        self.add_widget(self.empty_lbl)
+
+    def on_enter(self):
+        self.refresh_list()
 
     def go_add(self, _):
         self.manager.get_screen('add_account').setup('card_list')
@@ -652,10 +683,15 @@ class CardListScreen(BaseScreen):
     def refresh_list(self):
         self.list_view.clear_widgets()
         data = load_data()
-        for name in data.get("cards", {}):
-            item = TwoLineAvatarIconListItem(text=name, secondary_text="Tap to view cards", on_release=lambda x, n=name: self.open_cards(n))
-            item.add_widget(IconRightWidget(icon="cards"))
-            self.list_view.add_widget(item)
+        cards = data.get("cards", {})
+        if not cards:
+            self.empty_lbl.opacity = 1
+        else:
+            self.empty_lbl.opacity = 0
+            for name in cards:
+                item = TwoLineAvatarIconListItem(text=name, secondary_text="Tap to view cards", on_release=lambda x, n=name: self.open_cards(n))
+                item.add_widget(IconRightWidget(icon="cards"))
+                self.list_view.add_widget(item)
 
     def open_cards(self, name):
         self.manager.get_screen('card_edit').load_account(name)
@@ -730,14 +766,13 @@ class CardEditScreen(BaseScreen):
         if self.account_name in data["cards"]: del data["cards"][self.account_name]
         save_data(data)
         self.manager.current = 'card_list'
-        self.manager.get_screen('card_list').refresh_list()
 
 # --- APP ---
 class UltimateApp(MDApp):
     def build(self):
         self.theme_cls.theme_style = "Dark"
         self.theme_cls.primary_palette = "DeepPurple"
-        sm = ScreenManager()
+        sm = ScreenManager(transition=NoTransition())
         sm.add_widget(MenuScreen(name='menu'))
         sm.add_widget(MarketScreen(name='market'))
         sm.add_widget(CraftingScreen(name='crafting'))
