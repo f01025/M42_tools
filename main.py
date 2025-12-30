@@ -1,48 +1,62 @@
 import json
 import os
+import traceback
 from functools import partial
 from kivymd.app import MDApp
 from kivymd.uix.screen import MDScreen
-from kivymd.uix.button import MDFillRoundFlatButton, MDIconButton
+from kivymd.uix.button import MDFillRoundFlatButton, MDIconButton, MDFloatingActionButton
 from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.gridlayout import MDGridLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.card import MDCard
 from kivymd.uix.scrollview import MDScrollView
-from kivymd.uix.gridlayout import MDGridLayout
 from kivy.uix.screenmanager import ScreenManager, NoTransition
 from kivy.core.window import Window
 from kivy.utils import platform
+from kivy.clock import Clock
 
 if platform not in ['android', 'ios']:
     Window.size = (360, 800)
 
-# --- DATA HANDLING ---
+# --- DATA HANDLING (Lazy Loading) ---
 def get_data_path():
-    app = MDApp.get_running_app()
-    if platform == 'android':
-        return os.path.join(app.user_data_dir, "data.json")
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.json")
+    try:
+        app = MDApp.get_running_app()
+        if platform == 'android':
+            return os.path.join(app.user_data_dir, "data.json")
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.json")
+    except:
+        return "data.json"
 
 def load_data():
+    # Only runs when needed, not at startup
     try:
         path = get_data_path()
-        if not os.path.exists(path): return {}
-        with open(path, "r") as f: return json.load(f)
-    except: return {}
+        if not os.path.exists(path):
+            return {"inventory": {}, "cards": {}}
+        with open(path, "r") as f:
+            data = json.load(f)
+            if not isinstance(data, dict): return {"inventory": {}, "cards": {}}
+            if "inventory" not in data: data["inventory"] = {}
+            if "cards" not in data: data["cards"] = {}
+            return data
+    except:
+        return {"inventory": {}, "cards": {}}
 
 def save_data(data):
     try:
-        with open(get_data_path(), "w") as f: json.dump(data, f, indent=4)
-    except: pass
+        with open(get_data_path(), "w") as f:
+            json.dump(data, f, indent=4)
+    except:
+        pass
 
-# --- BASE SCREEN ---
+# --- UI COMPONENTS ---
 class BaseScreen(MDScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.md_bg_color = (0.1, 0.1, 0.1, 1)
 
-# --- MENU SCREEN ---
 class MenuScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -67,8 +81,15 @@ class MenuScreen(BaseScreen):
             )
             layout.add_widget(btn)
         
+        # Settings Icon
         layout.add_widget(MDLabel(size_hint_y=None, height="20dp"))
-        settings_btn = MDIconButton(icon="cog", theme_text_color="Custom", text_color=(0.5, 0.5, 0.5, 1), pos_hint={'center_x': 0.5}, on_release=lambda x: self.go_to('settings'))
+        settings_btn = MDIconButton(
+            icon="cog", 
+            theme_text_color="Custom", 
+            text_color=(0.5, 0.5, 0.5, 1),
+            pos_hint={'center_x': 0.5},
+            on_release=lambda x: self.go_to('settings')
+        )
         layout.add_widget(settings_btn)
         self.add_widget(layout)
 
@@ -76,32 +97,43 @@ class MenuScreen(BaseScreen):
         self.manager.transition = NoTransition()
         self.manager.current = route
 
-# --- SETTINGS ---
 class SettingsScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         layout = MDBoxLayout(orientation='vertical', spacing="20dp", padding="40dp")
         layout.add_widget(MDFillRoundFlatButton(text="< BACK", md_bg_color=(0.3, 0.3, 0.3, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
         layout.add_widget(MDLabel(text="Settings", halign="center", font_style="H5"))
-        btn_reset = MDFillRoundFlatButton(text="RESET ALL DATA", md_bg_color=(0.8, 0, 0, 1), size_hint=(1, None), on_release=self.reset_data)
+        
+        btn_reset = MDFillRoundFlatButton(
+            text="WIPE ALL DATA", 
+            md_bg_color=(0.8, 0, 0, 1), 
+            size_hint=(1, None),
+            on_release=self.reset_data
+        )
         layout.add_widget(btn_reset)
+        layout.add_widget(MDLabel(text="(Use if app crashes)", halign="center", theme_text_color="Secondary", font_style="Caption"))
         layout.add_widget(MDLabel())
         self.add_widget(layout)
 
     def reset_data(self, _):
-        if os.path.exists(get_data_path()):
-            os.remove(get_data_path())
+        try:
+            path = get_data_path()
+            if os.path.exists(path):
+                os.remove(path)
+        except:
+            pass
         self.manager.current = 'menu'
 
 # --- 1. BLACK MARKET ---
 class MarketScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        main_box = MDBoxLayout(orientation='vertical')
+        root = MDBoxLayout(orientation='vertical')
+        
         header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
         header.add_widget(MDFillRoundFlatButton(text="< BACK", size_hint=(0.3, 1), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
         header.add_widget(MDLabel(text="Black Market", halign="center", font_style="H5"))
-        main_box.add_widget(header)
+        root.add_widget(header)
 
         scroll = MDScrollView()
         content = MDBoxLayout(orientation='vertical', spacing="20dp", padding="20dp", adaptive_height=True)
@@ -120,8 +152,8 @@ class MarketScreen(BaseScreen):
         content.add_widget(grid)
         
         scroll.add_widget(content)
-        main_box.add_widget(scroll)
-        self.add_widget(main_box)
+        root.add_widget(scroll)
+        self.add_widget(root)
 
     def create_res_box(self, title, value):
         card = MDCard(orientation='vertical', padding="10dp", size_hint_y=None, height="100dp", md_bg_color=(0.2, 0.2, 0.2, 1))
@@ -149,11 +181,12 @@ class MarketScreen(BaseScreen):
 class CraftingScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        main_box = MDBoxLayout(orientation='vertical')
+        root = MDBoxLayout(orientation='vertical')
+        
         header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
         header.add_widget(MDFillRoundFlatButton(text="< BACK", size_hint=(0.3, 1), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
         header.add_widget(MDLabel(text="Tier Calc", halign="center", font_style="H5"))
-        main_box.add_widget(header)
+        root.add_widget(header)
 
         scroll = MDScrollView()
         content = MDBoxLayout(orientation='vertical', spacing="20dp", padding="20dp", adaptive_height=True)
@@ -183,8 +216,8 @@ class CraftingScreen(BaseScreen):
         content.add_widget(self.res_card)
         
         scroll.add_widget(content)
-        main_box.add_widget(scroll)
-        self.add_widget(main_box)
+        root.add_widget(scroll)
+        self.add_widget(root)
 
     def calc(self, _):
         try:
@@ -202,7 +235,7 @@ class CraftingScreen(BaseScreen):
             owned = (i3 * 1) + (i4 * 4) + (i5 * 20) + (i6 * 100)
             missing = total_needed - owned
             if missing <= 0:
-                self.res_opt1.text = "Enough resources!"
+                self.res_opt1.text = "You have enough resources!"
                 self.res_opt2.text = ""
             else:
                 self.res_opt1.text = f"Need: {missing} x T3 Cards"
@@ -212,7 +245,57 @@ class CraftingScreen(BaseScreen):
         except: 
             self.res_opt1.text = "Error"
 
-# --- 3. ADD ACCOUNT SCREEN ---
+# --- 3. INVENTORY (SKELETON MODE) ---
+class InventoryListScreen(BaseScreen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        root = MDBoxLayout(orientation='vertical')
+        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
+        header.add_widget(MDFillRoundFlatButton(text="< MENU", size_hint=(0.3, 1), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
+        header.add_widget(MDLabel(text="Inventory", halign="center", font_style="H6"))
+        root.add_widget(header)
+
+        # TEST MODE CONTENT
+        content = MDBoxLayout(orientation='vertical', padding="20dp", spacing="20dp")
+        content.add_widget(MDLabel(text="Inventory Logic Disabled for Testing", halign="center"))
+        
+        # Add Account Button (Does nothing for now to prevent crash)
+        fab = MDFloatingActionButton(icon="plus", md_bg_color=(0.2, 0.6, 0.8, 1), pos_hint={'right': 0.95, 'y': 0.05})
+        fab.bind(on_release=self.go_add)
+        
+        root.add_widget(content)
+        self.add_widget(root)
+        self.add_widget(fab)
+
+    def go_add(self, _):
+        self.manager.get_screen('add_account').setup('inventory_list')
+        self.manager.current = 'add_account'
+
+# --- 4. CARDS (SKELETON MODE) ---
+class CardListScreen(BaseScreen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        root = MDBoxLayout(orientation='vertical')
+        header = MDBoxLayout(size_hint_y=None, height="60dp", padding="10dp", md_bg_color=(0.2, 0.2, 0.2, 1))
+        header.add_widget(MDFillRoundFlatButton(text="< MENU", size_hint=(0.3, 1), md_bg_color=(0.8, 0.2, 0.2, 1), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
+        header.add_widget(MDLabel(text="Cards", halign="center", font_style="H6"))
+        root.add_widget(header)
+
+        content = MDBoxLayout(orientation='vertical', padding="20dp", spacing="20dp")
+        content.add_widget(MDLabel(text="Card Logic Disabled for Testing", halign="center"))
+        
+        fab = MDFloatingActionButton(icon="plus", md_bg_color=(0.6, 0.3, 0.8, 1), pos_hint={'right': 0.95, 'y': 0.05})
+        fab.bind(on_release=self.go_add)
+        
+        root.add_widget(content)
+        self.add_widget(root)
+        self.add_widget(fab)
+
+    def go_add(self, _):
+        self.manager.get_screen('add_account').setup('card_list')
+        self.manager.current = 'add_account'
+
+# --- 5. ADD ACCOUNT (Simple Logic) ---
 class AddAccountScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -233,14 +316,15 @@ class AddAccountScreen(BaseScreen):
     def save(self, _):
         name = self.field.text.strip()
         if not name: return
-        data = load_data()
-        if self.target_screen == 'inventory_list':
-            if "inventory" not in data: data["inventory"] = {}
-            if name not in data["inventory"]: data["inventory"][name] = {}
-        elif self.target_screen == 'card_list':
-            if "cards" not in data: data["cards"] = {}
-            if name not in data["cards"]: data["cards"][name] = {}
-        save_data(data)
+        try:
+            data = load_data()
+            if self.target_screen == 'inventory_list':
+                if name not in data["inventory"]: data["inventory"][name] = {}
+            elif self.target_screen == 'card_list':
+                if name not in data["cards"]: data["cards"][name] = {}
+            save_data(data)
+        except:
+            pass
         self.go_back()
 
     def cancel(self, _):
@@ -249,77 +333,25 @@ class AddAccountScreen(BaseScreen):
     def go_back(self):
         self.manager.current = self.target_screen
 
-# --- 4. INVENTORY (EMPTY TEST MODE) ---
-class InventoryListScreen(BaseScreen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # SIMPLE VERTICAL LAYOUT - NO SCROLL
-        layout = MDBoxLayout(orientation='vertical', padding="20dp", spacing="20dp")
-        
-        # BACK BUTTON
-        layout.add_widget(MDFillRoundFlatButton(text="< BACK TO MENU", md_bg_color=(0.8, 0.2, 0.2, 1), size_hint=(1, None), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
-        
-        # TITLE
-        layout.add_widget(MDLabel(text="INVENTORY TEST\n(If you see this, crash is fixed)", halign="center"))
-        
-        # ADD BUTTON
-        layout.add_widget(MDFillRoundFlatButton(text="ADD ACCOUNT", on_release=self.go_add))
-        
-        # SPACER
-        layout.add_widget(MDLabel())
-        
-        self.add_widget(layout)
-
-    def go_add(self, _):
-        self.manager.get_screen('add_account').setup('inventory_list')
-        self.manager.current = 'add_account'
-
-# --- 5. CARDS (EMPTY TEST MODE) ---
-class CardListScreen(BaseScreen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # SIMPLE VERTICAL LAYOUT - NO SCROLL
-        layout = MDBoxLayout(orientation='vertical', padding="20dp", spacing="20dp")
-        
-        # BACK BUTTON
-        layout.add_widget(MDFillRoundFlatButton(text="< BACK TO MENU", md_bg_color=(0.8, 0.2, 0.2, 1), size_hint=(1, None), on_release=lambda x: setattr(self.manager, 'current', 'menu')))
-        
-        # TITLE
-        layout.add_widget(MDLabel(text="CARDS TEST\n(If you see this, crash is fixed)", halign="center"))
-        
-        # ADD BUTTON
-        layout.add_widget(MDFillRoundFlatButton(text="ADD ACCOUNT", on_release=self.go_add))
-        
-        # SPACER
-        layout.add_widget(MDLabel())
-        
-        self.add_widget(layout)
-
-    def go_add(self, _):
-        self.manager.get_screen('add_account').setup('card_list')
-        self.manager.current = 'add_account'
-
 # --- APP ---
 class UltimateApp(MDApp):
     def build(self):
         self.theme_cls.theme_style = "Dark"
         self.theme_cls.primary_palette = "DeepPurple"
-        
-        # DATA WIPE ON STARTUP FOR SAFETY
-        path = get_data_path()
-        if os.path.exists(path):
-            try: os.remove(path)
-            except: pass
-
-        sm = ScreenManager(transition=NoTransition())
-        sm.add_widget(MenuScreen(name='menu'))
-        sm.add_widget(SettingsScreen(name='settings'))
-        sm.add_widget(MarketScreen(name='market'))
-        sm.add_widget(CraftingScreen(name='crafting'))
-        sm.add_widget(AddAccountScreen(name='add_account'))
-        sm.add_widget(InventoryListScreen(name='inventory_list'))
-        sm.add_widget(CardListScreen(name='card_list'))
-        return sm
+        try:
+            sm = ScreenManager(transition=NoTransition())
+            sm.add_widget(MenuScreen(name='menu'))
+            sm.add_widget(SettingsScreen(name='settings'))
+            sm.add_widget(MarketScreen(name='market'))
+            sm.add_widget(CraftingScreen(name='crafting'))
+            sm.add_widget(InventoryListScreen(name='inventory_list'))
+            sm.add_widget(CardListScreen(name='card_list'))
+            sm.add_widget(AddAccountScreen(name='add_account'))
+            return sm
+        except Exception as e:
+            err = MDScreen()
+            err.add_widget(MDLabel(text=f"CRITICAL STARTUP ERROR:\n{e}", halign="center", theme_text_color="Error"))
+            return err
 
 if __name__ == '__main__':
     UltimateApp().run()
